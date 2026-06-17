@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<meta name="theme-color" content="#0a0a12" />
+<title>MANIAC MANSION: AfterWork — Teamtailor Linköping</title>
+<meta name="description" content="A retro SCUMM-style point-and-click adventure. Help the Teamtailor Linköping crew escape the office, crack the escape room, and make it to AfterWork." />
+<meta property="og:title" content="Maniac Mansion: AfterWork — Teamtailor Linköping" />
+<meta property="og:description" content="A retro point-and-click adventure. Escape the office, beat the escape room, reach AW." />
+<meta property="og:type" content="website" />
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div id="stage">
+    <div id="bezel">
+      <canvas id="screen" width="320" height="200"></canvas>
+      <div id="scanlines" aria-hidden="true"></div>
+      <div id="glare" aria-hidden="true"></div>
+    </div>
+    <div id="hint">Click to play · click a verb, then a thing · ⛶ fullscreen · M mute</div>
+  </div>
+
+  <div id="boot">
+    <div class="boot-inner">
+      <div class="boot-logo">MANIAC<br><span>MANSION</span></div>
+      <div class="boot-sub">AfterWork — Teamtailor Linköping</div>
+      <button id="startBtn" type="button">▶ INSERT COIN</button>
+      <div class="boot-tip">Headphones recommended · best in fullscreen</div>
+    </div>
+  </div>
+
+  <button id="fsBtn" type="button" title="Fullscreen (F)" aria-label="Fullscreen">⛶</button>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
