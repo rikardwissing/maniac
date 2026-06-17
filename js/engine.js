@@ -135,6 +135,12 @@ G.win = (payload) => { G.ending = payload; G.scene = "end"; sfx("win"); playMusi
 
 function findActor(id) { return G.actors.find((a) => a.id === id) || (G.player && G.player.id === id ? G.player : null); }
 
+// Spawn an NPC into the current room (used by content for dynamic colleagues).
+G.spawnActor = (def) => { const a = makeActor(def); G.actors.push(a); return a; };
+
+// Object display names may be strings or G-aware functions.
+function objName(o) { return typeof o.name === "function" ? o.name(G) : o.name; }
+
 /* ------------------------------------------------------------- rooms ---- */
 function enterRoom(id, opts) {
   const room = G.rooms[id];
@@ -234,6 +240,10 @@ function chooseCharacter(member) {
     frame: 0, anim: 0, target: null, onArrive: null,
     scale: null, speechColor: SKINS[member.skin].t || "#34d0b4", bob: 0,
   };
+  // the office colleague is whichever teammate you DIDN'T pick (no doppelgänger)
+  const others = TEAM.filter((m) => m.id !== member.id);
+  const mate = others[0] || member;
+  G.colleague = { id: mate.id, name: mate.name, skin: mate.skin };
   fadeTo(() => {
     enterRoom("office", {});
     G.scene = "play";
@@ -277,7 +287,7 @@ function clickRoom(x, y) {
   walkPlayer(x, y, null);
 }
 
-function targetFromObject(obj) { return { id: obj.id, name: obj.name, obj }; }
+function targetFromObject(obj) { return { id: obj.id, name: objName(obj), obj }; }
 
 /* ---------------------------------------------------------- inventory --- */
 function clickInventory(x, y) {
@@ -527,7 +537,7 @@ function updateHover() {
   const { x, y } = G.mouse;
   if (y < ROOM_H) {
     const o = objectAt(x, y);
-    G.hover = o ? { name: o.name } : null;
+    G.hover = o ? { name: objName(o) } : null;
   } else {
     const v = verbAt(x, y);
     if (v) { G.hover = { name: v.label }; return; }
@@ -720,12 +730,13 @@ function renderEnding(ctx) {
   const lines = e.lines || [];
   lines.forEach((l, i) => text(ctx, l, SCREEN_W / 2, 44 + i * 11, "#34d0b4", { align: "center" }));
 
-  // little toast scene
+  // little toast scene — you + the teammate from the office
   if (G.player) {
+    const mate = G.colleague ? SKINS[G.colleague.skin] : G.player.skin;
     sprite(ctx, ACTOR.FRONT, 120, 110, { scale: 1.6, override: G.player.skin });
-    sprite(ctx, ACTOR.FRONT, 168, 110, { scale: 1.6, override: SKINS.tove });
+    sprite(ctx, ACTOR.FRONT, 168, 110, { scale: 1.6, override: mate });
   }
-  text(ctx, "Skal! / Cheers!", SCREEN_W / 2, 156, "#f2d04a", { align: "center" });
+  text(ctx, "Skål! / Cheers!", SCREEN_W / 2, 156, "#f2d04a", { align: "center" });
   const blink = Math.sin(G.t * 3) > 0;
   if (blink) text(ctx, "click to play again", SCREEN_W / 2, 180, "#9fe0d6", { align: "center" });
   renderCursor(ctx);

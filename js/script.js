@@ -33,17 +33,19 @@ export const rooms = {
     start: { x: 78, y: 124, dir: "right" },
     walk: { minX: 14, maxX: 300, minY: 104, maxY: 132, scaleMin: 1.25, scaleMax: 1.9 },
     onEnter: (G) => {
+      // the colleague guarding the keycard is whichever teammate you didn't pick
+      if (!G.actors.find((a) => a.id === "colleague")) {
+        G.spawnActor({ id: "colleague", skin: G.colleague.skin, x: 216, y: 126, dir: "left" });
+      }
       if (!G.flag("introDone")) {
         G.cutscene([
           { say: ["player", "Friday in Linköping. The crew booked an escape room — and AW after."] },
-          { say: ["player", "First problem: escaping the office. Kim guards the door... and the keycard."] },
+          { say: ["player", `First problem: escaping the office. ${G.colleague.name} guards the door... and the keycard.`] },
           { do: (g) => g.setFlag("introDone") },
         ]);
       }
     },
-    actors: [
-      { id: "kim", skin: "kim", x: 216, y: 126, dir: "left" },
-    ],
+    actors: [],
     objects: [
       {
         id: "door", name: "front door", x: 4, y: 38, w: 46, h: 60,
@@ -115,29 +117,29 @@ export const rooms = {
         talk: () => "It's the best listener on the team, honestly.",
       },
       {
-        id: "kim", name: "Kim", x: 200, y: 96, w: 32, h: 42,
+        id: "colleague", name: (G) => G.colleague.name, x: 200, y: 96, w: 32, h: 42,
         walkTo: { x: 188, y: 124 }, defaultVerb: "talk",
-        look: () => "Kim. Powered entirely by espresso. Currently running on empty.",
+        look: (G) => `${G.colleague.name}. Powered entirely by espresso. Currently running on empty.`,
         talk: (G) => {
           if (G.has("keycard") || G.flag("gaveCoffee")) {
-            G.say("kim", "Go! Have fun. Bring me something stronger than coffee.");
+            G.say("colleague", "Go! Have fun. Bring me something stronger than coffee.");
             return;
           }
-          G.say("kim", "No coffee, no keycard. House rules.");
-          G.choose("Say to Kim:", [
-            { text: "Where's the keycard?", fn: (g) => g.say("kim", "Right here in my pocket. Trade you — for caffeine.") },
-            { text: "Rough morning?", fn: (g) => g.say("kim", "I dreamed in spreadsheets. Pivot tables. Help me.") },
-            { text: "There's a coffee machine right there...", fn: (g) => { g.say("kim", "Then prove it. Black. No sugar. Chop chop."); } },
+          G.say("colleague", "No coffee, no keycard. House rules.");
+          G.choose(`Say to ${G.colleague.name}:`, [
+            { text: "Where's the keycard?", fn: (g) => g.say("colleague", "Right here in my pocket. Trade you — for caffeine.") },
+            { text: "Rough morning?", fn: (g) => g.say("colleague", "I dreamed in spreadsheets. Pivot tables. Help me.") },
+            { text: "There's a coffee machine right there...", fn: (g) => { g.say("colleague", "Then prove it. Black. No sugar. Chop chop."); } },
             { text: "(step away)", fn: () => {} },
           ]);
         },
         give: {
           coffee: (G) => {
             G.removeItem("coffee"); G.addItem("keycard"); G.setFlag("gaveCoffee");
-            G.say("kim", "Aaah. Bless you. Here — the keycard. Now GO, before I assign you a ticket.");
+            G.say("colleague", "Aaah. Bless you. Here — the keycard. Now GO, before I assign you a ticket.");
             return "I hand over the espresso.";
           },
-          bun: (G) => { G.say("kim", "A bun? Adorable. But I run on COFFEE. Black. Now."); return "Kim eyes the bun, then the coffee machine."; },
+          bun: (G) => { G.say("colleague", "A bun? Adorable. But I run on COFFEE. Black. Now."); return `${G.colleague.name} eyes the bun, then the coffee machine.`; },
         },
       },
     ],

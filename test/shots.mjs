@@ -27,9 +27,9 @@ await ff(); await shot("03-office");
 await call("O('mug').pickup(G)"); await call("O('machine').useWith.mug(G)");
 await call("O('bun').pickup(G)"); await call("O('note').pickup(G)");
 // show a speech line for flavour
-await call("O('kim').talk(G)"); await page.waitForTimeout(300); await shot("04-office-talk");
+await call("O('colleague').talk(G)"); await page.waitForTimeout(300); await shot("04-office-talk");
 await call("G.choices && G.choices.list[3].fn(G)"); await ff();
-await call("O('kim').give.coffee(G)"); await page.waitForTimeout(300); await shot("05-office-coffee");
+await call("O('colleague').give.coffee(G)"); await page.waitForTimeout(300); await shot("05-office-coffee");
 await ff();
 await call("O('door').useWith.keycard(G)"); await ff(); await page.waitForTimeout(300); await ff();
 await shot("06-street");

@@ -79,7 +79,7 @@ try {
   await call("O('note').pickup(G)");
   await call("O('bun').pickup(G)");
   await call("G.items.note.look(G)");
-  await call("O('kim').give.coffee(G)"); await ff();
+  await call("O('colleague').give.coffee(G)"); await ff();
   s = await sceneRoom(); console.log("office solved inv:", JSON.stringify(s.inv));
   if (!s.inv.includes("keycard")) throw new Error("no keycard after coffee");
   await call("O('door').useWith.keycard(G)");

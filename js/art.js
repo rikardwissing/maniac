@@ -122,22 +122,18 @@ export const ACTOR_H = 24;
 
 // Recolour overrides per character. Keys map palette letters to new hex.
 export const SKINS = {
-  // The five Teamtailor Linköping kids (player-selectable)
-  robin:  { h: "#3a2a1a", H: "#241409", t: "#00a98f", T: "#00715f" },           // teal classic
-  kim:    { h: "#c9442b", H: "#8a2114", t: "#d23b2b", T: "#9a2417" },           // ginger, red hoodie
-  alex:   { h: "#1c1c22", H: "#000", s: "#a86a3e", S: "#7a4a28", t: "#f2d04a", T: "#c9a82f" }, // yellow tee
-  sam:    { h: "#6db5d8", H: "#3f7fb0", t: "#7a3b8f", T: "#4d2259" },           // blue hair, purple
-  tove:   { h: "#f2d04a", H: "#c9a82f", t: "#d062b0", T: "#a8407f" },           // blonde, pink
+  // The Teamtailor Linköping crew (player-selectable)
+  jonas: { h: "#5a3a1f", H: "#3a2412", t: "#00a98f", T: "#00715f" },           // brown hair, teal
+  emil:  { h: "#e8c451", H: "#c9a82f", t: "#3f7fb0", T: "#2c5a82" },           // blonde, blue
+  oskar: { h: "#23232a", H: "#121217", t: "#e8902f", T: "#b56a18" },           // dark hair, orange
   // NPCs
   bartender: { h: "#1c1c22", H: "#000", t: "#222", T: "#111", j: "#444", J: "#222" },
 };
 
 export const TEAM = [
-  { id: "robin", name: "Robin", skin: "robin", blurb: "Loves clean code and cleaner kanelbullar." },
-  { id: "kim",   name: "Kim",   skin: "kim",   blurb: "Runs entirely on caffeine. Do not approach undosed." },
-  { id: "alex",  name: "Alex",  skin: "alex",  blurb: "Closed 12 candidates before lunch. Smug about it." },
-  { id: "sam",   name: "Sam",   skin: "sam",   blurb: "The one who actually booked the escape room." },
-  { id: "tove",  name: "Tove",  skin: "tove",  blurb: "Already at AW in spirit." },
+  { id: "jonas", name: "Jonas", skin: "jonas", blurb: "Ships features and strong opinions about fika." },
+  { id: "emil",  name: "Emil",  skin: "emil",  blurb: "Has never lost an escape room. Allegedly." },
+  { id: "oskar", name: "Oskar", skin: "oskar", blurb: "Already has the AW bar tab open in a browser tab." },
 ];
 
 /* ----------------------------------------------------------------------- *
