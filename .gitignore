@@ -2,3 +2,8 @@ node_modules/
 shots/
 *.log
 .DS_Store
+
+# build artifacts
+site/
+*.zip
+_site/
