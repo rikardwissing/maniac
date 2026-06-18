@@ -191,6 +191,30 @@ export const ICONS = {
     "    kiiiiiik    ","    kiiiiiik    ","    kkkokkkk    ","    kkkkkkkk    ",
     "                ","                ","                ","                ",
   ],
+  mug: [
+    "                ","                ","   WWWWWWWW     ","  WWWWWWWWWW    ",
+    "  WW      WW WW ","  WW      WWW WW","  WW      WW  WW","  WW      WW WW ",
+    "  WW      WWWW  ","  WW      WW    ","  WWWWWWWWWW    ","   WWWWWWWW     ",
+    "    qqqqqq      ","                ","                ","                ",
+  ],
+  coffee: [
+    "      ggg       ","     g g g      ","   WWWWWWWW g   ","  WWWWWWWWWW    ",
+    "  WWeeeeeeWW WW ","  WWEEEEEEWWW WW","  WWeeeeeeWW  WW","  WWEEEEEEWW WW ",
+    "  WWeeeeeeWWWW  ","  WW      WW    ","  WWWWWWWWWW    ","   WWWWWWWW     ",
+    "    qqqqqq      ","                ","                ","                ",
+  ],
+  bun: [
+    "                ","                ","    EEEEEEEE    ","   EeeeeeeeeE   ",
+    "  EeeEEeeEEeeE  ","  EeEwwEewwEeE  ","  EeEwHHEwHHeE  ","  EeeEEeeEEeeE  ",
+    "  EeeeeeeeeeeE  ","  EeeEwwEwwEeE  ","   EeeeeeeeeE   ","    EEEEEEEE    ",
+    "    EEEEEEEE    ","                ","                ","                ",
+  ],
+  helmet: [
+    "                ","                ","    LLLLLLLL    ","   LLllllllLL   ",
+    "  LLllLllLllLL  ","  LlllkllkllLL  ","  LlllllllllLL  ","  LLllllllllLL  ",
+    "  bbLLLLLLLLbb  ","    b      b    ","    b      b    ","                ",
+    "                ","                ","                ","                ",
+  ],
   loot: [   // duffel bag of cash
     "                ","                ","    kk    kk    ","   kEEkkkkEEk   ",
     "  EEEEEEEEEEEE  "," EEnEnEnEnEnEEE "," EnEnEnEnEnEnEE "," EEEEEEEEEEEEEE ",
@@ -321,7 +345,7 @@ export function drawPortrait(ctx, skin, x, y, size, long) {
  * ======================================================================= */
 
 // 1 — TEAMTAILOR OFFICE (Linköping). width 480. Exit (door) at the far right.
-export const OFFICE_W = 480;
+export const OFFICE_W = 360;
 export function paintOffice(ctx, t, st) {
   vGradient(ctx, 0, 0, OFFICE_W, 92, "#0e5e52", "#0a4a40", 12);
   rect(ctx, 0, 90, OFFICE_W, 6, "#073229");
@@ -329,61 +353,58 @@ export function paintOffice(ctx, t, st) {
   rect(ctx, 0, 95, OFFICE_W, 1, "#5f3c1d");
   for (let x = 0; x < OFFICE_W; x += 24) rect(ctx, x, 96, 1, ROOM_H - 96, "#7a5226");
 
-  // wordmark sign
-  drawSign(ctx, 16, 16, "teamtailor");
-  textTiny(ctx, 16, 36, "PRODUCT . LINKOPING", "#063b33");
+  drawSign(ctx, 12, 14, "teamtailor");
+  textTiny(ctx, 12, 34, "PRODUCT . LINKOPING", "#063b33");
 
-  // windows with Linköping skyline
-  for (let wx = 150; wx < 430; wx += 130) {
-    rect(ctx, wx - 3, 11, 80, 56, "#063b33");
-    vGradient(ctx, wx, 14, 74, 50, "#bfe8ff", "#eaf6ff", 8);
-    rect(ctx, wx + 30, 22, 8, 42, "#6a7d92"); // cathedral
-    for (let i = 0; i < 6; i++) px(ctx, wx + 34, 16 + i, "#5a6c80");
-    rect(ctx, wx + 10, 40, 50, 24, "#7c93a8");
-    rect(ctx, wx + 37, 14, 2, 50, "#063b33");
-    rect(ctx, wx, 38, 74, 2, "#063b33");
-  }
+  // a window with the Linköping skyline
+  const wx = 250;
+  rect(ctx, wx - 3, 11, 70, 52, "#063b33");
+  vGradient(ctx, wx, 14, 64, 46, "#bfe8ff", "#eaf6ff", 8);
+  rect(ctx, wx + 26, 22, 8, 38, "#6a7d92"); for (let i = 0; i < 6; i++) px(ctx, wx + 30, 16 + i, "#5a6c80");
+  rect(ctx, wx + 8, 38, 44, 22, "#7c93a8"); rect(ctx, wx + 32, 14, 2, 46, "#063b33"); rect(ctx, wx, 36, 64, 2, "#063b33");
 
-  // a row of standing desks with monitors (the product team's battlestations)
-  for (let i = 0; i < 4; i++) {
-    const dx = 60 + i * 95;
-    rect(ctx, dx, 80, 70, 6, "#5a3a1a");
-    rect(ctx, dx + 8, 86, 6, 16, "#3a2410");
-    rect(ctx, dx + 56, 86, 6, 16, "#3a2410");
-    rect(ctx, dx + 18, 54, 40, 26, "#15151d");
-    vGradient(ctx, dx + 21, 57, 34, 20, "#0a4a40", "#0e5e52", 6);
-    rect(ctx, dx + 24, 60, 18, 3, "#34d0b4");
-    rect(ctx, dx + 24, 65, 26, 2, "#9fe8ff");
-    rect(ctx, dx + 24, 69, 20, 2, "#9fe8ff");
-  }
-
-  // supply cabinet (left) — locked; holds the keycard + corporate card
-  const cbx = 36, cby = 70;
-  rect(ctx, cbx, cby, 40, 50, "#3a4658"); frame(ctx, cbx, cby, 40, 50, "#566075");
-  rect(ctx, cbx + 3, cby + 3, 16, 44, "#2a3340"); rect(ctx, cbx + 21, cby + 3, 16, 44, "#2a3340");
+  // supply cabinet (left) — holds the company card
+  const cbx = 18, cby = 70;
+  rect(ctx, cbx, cby, 36, 50, "#3a4658"); frame(ctx, cbx, cby, 36, 50, "#566075");
+  rect(ctx, cbx + 3, cby + 3, 14, 44, "#2a3340"); rect(ctx, cbx + 19, cby + 3, 14, 44, "#2a3340");
   if (st.flags.cabinetOpen) {
-    rect(ctx, cbx + 3, cby + 3, 34, 44, "#11161e");
-    if (!st.flags.tookCard) { sprite(ctx, ICONS.keycard, cbx + 4, cby + 8, { scale: 0.8 }); sprite(ctx, ICONS.card, cbx + 20, cby + 22, { scale: 0.8 }); }
+    rect(ctx, cbx + 3, cby + 3, 30, 44, "#11161e");
+    if (!st.flags.tookCard) sprite(ctx, ICONS.card, cbx + 9, cby + 16, { scale: 0.9 });
   } else {
-    rect(ctx, cbx + 18, cby + 22, 4, 6, "#f2d04a"); // lock + handles
-    rect(ctx, cbx + 12, cby + 24, 4, 2, "#c9a82f"); rect(ctx, cbx + 24, cby + 24, 4, 2, "#c9a82f");
+    rect(ctx, cbx + 16, cby + 22, 4, 6, "#f2d04a");
+    rect(ctx, cbx + 10, cby + 24, 4, 2, "#c9a82f"); rect(ctx, cbx + 22, cby + 24, 4, 2, "#c9a82f");
   }
 
-  // exit door at far right (to the street)
-  const dx = OFFICE_W - 44;
-  rect(ctx, dx, 34, 38, 62, "#063b33");
-  vGradient(ctx, dx + 4, 38, 30, 56, "#7a4d24", "#5f3c1d", 6);
-  rect(ctx, dx + 8, 42, 22, 20, "#9fe8ff");
-  rect(ctx, dx + 28, 70, 4, 10, "#f2d04a");
-  rect(ctx, dx - 8, 64, 7, 12, "#22222e"); // badge reader
-  rect(ctx, dx - 6, 67, 3, 3, st.flags.officeUnlocked ? "#46b85c" : "#d23b2b");
-  textTiny(ctx, dx - 2, 30, "EXIT", "#9fe8ff");
+  // pot plant — a key glints in the soil
+  rect(ctx, 66, 108, 16, 18, "#9a6233"); rect(ctx, 68, 110, 12, 6, "#3a2410");
+  for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI; rect(ctx, (74 + Math.cos(a) * 6) | 0, 103 - (Math.sin(a) * 9) | 0, 2, 9, "#2c8540"); }
+  if (!st.flags.tookCabKey) { px(ctx, 72, 112, "#f2d04a"); px(ctx, 73, 112, "#fff4c0"); px(ctx, 74, 113, "#f2d04a"); }
 
-  // pot plant — a key glints in the soil until taken
-  rect(ctx, 120, 110, 16, 16, "#9a6233");
-  rect(ctx, 122, 112, 12, 5, "#3a2410");
-  for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI; rect(ctx, (128 + Math.cos(a) * 6) | 0, (105 - Math.sin(a) * 9) | 0, 2, 9, "#2c8540"); }
-  if (!st.flags.tookCabKey) { px(ctx, 126, 114, "#f2d04a"); px(ctx, 127, 114, "#fff4c0"); px(ctx, 128, 115, "#f2d04a"); }
+  // kitchenette counter with the coffee machine
+  rect(ctx, 96, 78, 70, 4, "#caa46a"); rect(ctx, 96, 78, 70, 2, "#e6c894"); rect(ctx, 96, 96, 70, 2, "#7a5226");
+  const cmx = 108, cmy = 56;
+  rect(ctx, cmx, cmy, 22, 22, "#22222e"); rect(ctx, cmx + 2, cmy + 2, 18, 8, "#3a3a4a");
+  rect(ctx, cmx + 4, cmy + 4, 6, 4, st.flags.coffeeOn ? "#46b85c" : "#d23b2b"); px(ctx, cmx + 13, cmy + 6, "#9fe8ff");
+  rect(ctx, cmx + 7, cmy + 12, 8, 6, "#15151d"); rect(ctx, cmx + 9, cmy + 18, 4, 3, "#0b0b12");
+  // a clean mug on the counter
+  if (!st.flags.tookMug) sprite(ctx, ICONS.mug, 146, 64, { scale: 0.8 });
+
+  // fika table with a kanelbulle
+  rect(ctx, 176, 92, 40, 4, "#5f3c1d"); rect(ctx, 180, 96, 4, 20, "#5f3c1d"); rect(ctx, 208, 96, 4, 20, "#5f3c1d");
+  rect(ctx, 174, 86, 44, 7, "#7a4d24"); rect(ctx, 176, 84, 40, 4, "#9a6233");
+  if (!st.flags.tookBun) { rect(ctx, 186, 82, 16, 4, "#d6d6d0"); sprite(ctx, ICONS.bun, 186, 70, { scale: 1 }); }
+
+  // a desk + monitor (the tip glows on screen)
+  rect(ctx, 226, 80, 60, 6, "#5a3a1a"); rect(ctx, 232, 86, 6, 16, "#3a2410"); rect(ctx, 278, 86, 6, 16, "#3a2410");
+  rect(ctx, 238, 54, 40, 26, "#15151d"); vGradient(ctx, 241, 57, 34, 20, "#0a4a40", "#0e5e52", 6);
+  rect(ctx, 244, 60, 18, 3, "#34d0b4"); rect(ctx, 244, 65, 26, 2, "#9fe8ff"); rect(ctx, 244, 69, 20, 2, "#9fe8ff");
+
+  // exit door (far right)
+  const dx = OFFICE_W - 40;
+  rect(ctx, dx, 34, 36, 62, "#063b33"); vGradient(ctx, dx + 4, 38, 28, 56, "#7a4d24", "#5f3c1d", 6);
+  rect(ctx, dx + 7, 42, 20, 18, "#9fe8ff"); rect(ctx, dx + 26, 70, 4, 10, "#f2d04a");
+  rect(ctx, dx - 8, 64, 7, 12, "#22222e"); rect(ctx, dx - 6, 67, 3, 3, st.flags.officeUnlocked ? "#46b85c" : "#d23b2b");
+  textTiny(ctx, dx - 2, 30, "EXIT", "#9fe8ff");
 }
 
 // 2 — THE STREET: the connected hub. width 760. Doors to everywhere.
@@ -409,6 +430,26 @@ export function paintStreet(ctx, t, st) {
   speckle(ctx, 0, 96, STREET_W, ROOM_H - 96, "#33363c", 0.05, 7);
   for (let y = 100; y < ROOM_H; y += 8) for (let x = (y % 16); x < STREET_W; x += 16) rect(ctx, x, y, 7, 6, "#4d5158");
   for (let i = 0; i < 3; i++) bike(ctx, 286 + i * 24, 96, i === 1);
+  // a helmet on a hook by the bikes
+  if (!st.flags.tookHelmet) { rect(ctx, 268, 80, 2, 12, "#5a5a64"); rect(ctx, 264, 80, 8, 2, "#5a5a64"); sprite(ctx, ICONS.helmet, 260, 80, { scale: 0.8 }); }
+}
+
+// scrolling background for the bike MINI-GAME (parametric by scroll distance)
+export function paintBikeRide(ctx, scroll, night) {
+  vGradient(ctx, 0, 0, ROOM_W, 96, night ? "#0c1430" : "#f3b87e", night ? "#202a4a" : "#f8dcae", 10);
+  rect(ctx, night ? 30 : 40, 12, 9, 9, night ? "#e8e8d0" : "#fff0c0");
+  if (night) for (let i = 0; i < 36; i++) px(ctx, (i * 71 + 13) % ROOM_W, (i * 53) % 56, "#2a3550");
+  // far skyline (slow parallax)
+  const s1 = (scroll * 0.4) | 0;
+  for (let i = 0; i < 12; i++) { let x = ((i * 80 - s1) % 960 + 960) % 960 - 80; const h = 16 + (i % 4) * 9; rect(ctx, x, 70 - h, 60, h, night ? "#0e1830" : "#6a5a82"); }
+  // cathedral sweeping past (mid parallax)
+  let cx = ((420 - (scroll * 0.7)) % 1100 + 1100) % 1100 - 90;
+  rect(ctx, cx, 44, 18, 26, night ? "#1a2440" : "#b9967c"); rect(ctx, cx + 6, 24, 6, 46, night ? "#101a30" : "#a8836a");
+  // road (fills the whole screen height — the mini-game has no UI panel)
+  vGradient(ctx, 0, 96, ROOM_W, 104, night ? "#1a1f2c" : "#5c6068", night ? "#10131c" : "#3a3d44", 8);
+  rect(ctx, 0, 96, ROOM_W, 2, night ? "#2a3550" : "#b6bcc4");
+  const d = (scroll * 4) | 0;
+  for (let x = -(d % 44); x < ROOM_W; x += 44) { rect(ctx, x, 118, 22, 2, night ? "#3a4560" : "#9aa0a8"); rect(ctx, x + 10, 150, 26, 3, night ? "#2f3850" : "#888d96"); }
 }
 function doorway(ctx, x, label, color) {
   rect(ctx, x, 44, 32, 36, "#1a1f28"); frame(ctx, x, 44, 32, 36, "#11151c");
@@ -681,22 +722,22 @@ export function paintControl(ctx, t, st) {
 }
 
 // 6 — THE ROOFTOP (the getaway). width 480.
-export const ROOF_W = 480;
+export const ROOF_W = 380;
 export function paintRoof(ctx, t, st) {
   vGradient(ctx, 0, 0, ROOF_W, 96, "#0a0e20", "#141a34", 12);
-  for (let i = 0; i < 60; i++) px(ctx, (i * 89) % ROOF_W, (i * 53) % 70, i % 4 ? "#2a3550" : "#6a7aa0");
-  rect(ctx, 70, 14, 8, 8, "#e8e8d0"); // moon
-  for (let i = 0; i < 8; i++) { const x = i * 64, h = 20 + (i % 3) * 12; rect(ctx, x, 70 - h, 52, h, "#0c1428"); for (let w = 4; w < 48; w += 8) if ((i * 7 + w) % 3) rect(ctx, x + w, 70 - h + 4, 4, 4, "#caa84a"); }
-  rect(ctx, 300, 28, 16, 42, "#10182c"); rect(ctx, 305, 12, 6, 58, "#0c1426"); for (let i = 0; i < 5; i++) px(ctx, 308, 6 + i, "#caa84a"); // cathedral
+  for (let i = 0; i < 48; i++) px(ctx, (i * 89) % ROOF_W, (i * 53) % 70, i % 4 ? "#2a3550" : "#6a7aa0");
+  rect(ctx, 60, 14, 8, 8, "#e8e8d0"); // moon
+  for (let i = 0; i < 7; i++) { const x = i * 58, h = 20 + (i % 3) * 12; rect(ctx, x, 70 - h, 48, h, "#0c1428"); for (let w = 4; w < 44; w += 8) if ((i * 7 + w) % 3) rect(ctx, x + w, 70 - h + 4, 4, 4, "#caa84a"); }
+  rect(ctx, 226, 28, 16, 42, "#10182c"); rect(ctx, 231, 12, 6, 58, "#0c1426"); for (let i = 0; i < 5; i++) px(ctx, 234, 6 + i, "#caa84a"); // cathedral
   // deck
   vGradient(ctx, 0, 96, ROOF_W, ROOM_H - 96, "#3a3f4a", "#22262e", 8); rect(ctx, 0, 96, ROOF_W, 2, "#566075");
-  rect(ctx, 40, 80, 40, 18, "#4a5160"); frame(ctx, 40, 80, 40, 18, "#2a3550"); for (let i = 0; i < 3; i++) rect(ctx, 46 + i * 12, 84, 8, 10, "#2a3550");
-  rect(ctx, 116, 86, 20, 12, "#3a4150");
-  ctx.fillStyle = "#c9a82f"; ctx.fillRect(150, 118, 3, 12); ctx.fillRect(168, 118, 3, 12); ctx.fillRect(153, 123, 15, 3); // helipad H
+  rect(ctx, 44, 80, 38, 18, "#4a5160"); frame(ctx, 44, 80, 38, 18, "#2a3550"); for (let i = 0; i < 3; i++) rect(ctx, 50 + i * 11, 84, 7, 10, "#2a3550");
+  rect(ctx, 118, 86, 18, 12, "#3a4150");
+  ctx.fillStyle = "#c9a82f"; ctx.fillRect(150, 118, 3, 12); ctx.fillRect(166, 118, 3, 12); ctx.fillRect(153, 123, 13, 3); // helipad H
   // door back down (left)
-  rect(ctx, 8, 70, 26, 28, "#1a1f28"); frame(ctx, 8, 70, 26, 28, "#2a3550");
+  rect(ctx, 8, 70, 26, 28, "#1a1f28"); frame(ctx, 8, 70, 26, 28, "#2a3550"); textTiny(ctx, 8, 64, "DOWN", "#5a6678");
   // the escape drone (right) + dangling case
-  const dx = 392, dy = 40 + Math.sin(t * 3) * 3;
+  const dx = 300, dy = 40 + Math.sin(t * 3) * 3;
   if (!st.flags.droneDown) {
     rect(ctx, dx - 22, dy, 44, 4, "#2a2f3a");
     for (const wx of [dx - 22, dx + 14]) { ctx.strokeStyle = "#6a7180"; ctx.lineWidth = 1; ctx.beginPath(); ctx.ellipse(wx + 4, dy - 2, 9, 2, 0, 0, Math.PI * 2); ctx.stroke(); }

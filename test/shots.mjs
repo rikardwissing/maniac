@@ -9,11 +9,12 @@ const browser = await chromium.launch();
 const page = await browser.newPage({ viewport:{width:1040,height:680}, deviceScaleFactor:2 });
 await page.goto(`http://localhost:${PORT}/`);
 await page.waitForFunction(()=>window.__MM&&window.__MM.fontReady,null,{timeout:8000});
-const shot = async (name)=>{ await page.waitForTimeout(250); const el=await page.$("#bezel"); await el.screenshot({path:`shots/${name}.png`}); console.log("shot",name); };
+const shot = async (n)=>{ await page.waitForTimeout(250); const el=await page.$("#bezel"); await el.screenshot({path:`shots/${n}.png`}); console.log("shot",n); };
 const run = (e)=>page.evaluate((x)=>{const G=window.__MM;const O=(id)=>G.rooms[G.state.room].objects.find(o=>o.id===id);return eval(x);},e);
 const ff = async ()=>{ await page.evaluate(async()=>{const G=window.__MM;for(let i=0;i<80;i++){G.speech.length=0;G.current=null;if(G.card)G.card.until=0;if(!G.cs&&G.fadeDir===0&&!G.card)break;await new Promise(r=>setTimeout(r,50));}}); await page.waitForTimeout(150); };
-const card = async (name)=>{ await page.evaluate(async()=>{const G=window.__MM;for(let i=0;i<50;i++){if(G.card)break;G.speech.length=0;G.current=null;await new Promise(r=>setTimeout(r,40));}}); await page.waitForTimeout(350); await shot(name); };
+const card = async (n)=>{ await page.evaluate(async()=>{const G=window.__MM;for(let i=0;i<50;i++){if(G.card)break;G.speech.length=0;G.current=null;await new Promise(r=>setTimeout(r,40));}}); await page.waitForTimeout(350); await shot(n); };
 const place = (x)=>run(`G.player.x=${x}; G.player.target=null; G.camX=Math.max(0,Math.min((G.rooms[G.state.room].width||320)-320, ${x}-160));`);
+const finishBike = async ()=>{ await page.evaluate(()=>{ if(window.__MM.bike) window.__MM.bike.dist=window.__MM.bike.total+5; }); await page.waitForTimeout(200); await ff(); };
 
 await page.waitForTimeout(400); await shot("01-title");
 await page.click("#startBtn"); await page.waitForTimeout(300);
@@ -23,52 +24,51 @@ const rect = await page.evaluate(()=>{const c=document.getElementById("screen").
 await page.mouse.click(rect.l+rect.w/2, rect.t+(179/200)*rect.h);
 await card("02b-titlecard"); await ff(); await shot("03-office");
 
-// OFFICE
-await run("O('plant').pickup(G)"); await run("O('cabinet').open(G)"); await run("O('badges').pickup(G)");
-await run("O('door').open(G)"); await card("03b-bikecard"); await ff(); await page.waitForTimeout(150); await ff();
+// OFFICE (tight): fika puzzle + cabinet
+await run("O('mug').pickup(G)"); await run("O('machine').useWith.mug(G)"); await run("O('bun').pickup(G)");
+await run("O('robin').give.coffee(G)"); await run("O('robin').give.bun(G)");
+await run("O('plant').pickup(G)"); await run("O('cabinet').open(G)"); await run("O('card').pickup(G)");
+await run("O('door').open(G)"); await ff(); await page.waitForTimeout(150); await ff();
 
-// STREET HUB
-await place(160); await shot("04-street");
-await run("O('kiosk').use(G)");                 // grab Cloetta for the guard later
-// CATHEDRAL branch
-await run("O('cathedral').use(G)"); await ff();
-await run("O('scope').use(G)"); await page.waitForTimeout(250); await shot("04b-cathedral");
-await run("O('back').use(G)"); await ff();
-// into the Vault via the host
-await run("O('board').look(G)"); await page.waitForTimeout(150);
-await run("O('host').talk(G)"); await place(686); await page.waitForTimeout(200); await shot("05-host");
-await run("G.choices.list[0].fn(G)"); await ff(); await page.waitForTimeout(150); await ff();
+// STREET hub
+await place(200); await shot("04-street");
+await run("O('helmet').pickup(G)"); await run("O('kiosk').use(G)");
+await run("O('cathedral').use(G)"); await ff(); await run("O('scope').use(G)"); await page.waitForTimeout(200); await shot("04b-cathedral"); await run("O('back').use(G)"); await ff();
+await run("O('board').look(G)"); await run("O('host').talk(G)"); await run("G.choices.list[0].fn(G)");
+// BIKE MINI-GAME
+await run("O('bikes').use(G)"); await page.waitForTimeout(700); await shot("05-bike");
+await finishBike();
 
 // HEIST
 await run("G.switchTo('rikard')"); await place(70); await page.waitForTimeout(150);
-await run("O('poster').use(G)"); await page.waitForTimeout(250); await shot("06-heist-uv");
+await run("O('poster').use(G)"); await page.waitForTimeout(200); await shot("06-heist-uv");
 await run("O('wheel').use(G)"); await ff();
-await run("G.switchTo('caroline')"); await place(330); await run("O('safe').use(G)"); await page.waitForTimeout(250); await shot("07-safe");
-await run("O('loot').pickup(G)");
-await run("G.switchTo('per'); G.player.x=540; G.player.target=null; G.camX=300;"); await page.waitForTimeout(200); await shot("07b-guard");
+// KEYPAD close-up (Rikard, not Caroline, so the keypad shows)
+await run("G.switchTo('rikard')"); await place(330); await run("O('safe').use(G)");
+await page.keyboard.type("48"); await page.waitForTimeout(200); await shot("06b-keypad");
+await run("G.modalSolve()"); await run("O('loot').pickup(G)");
+await run("O('toolbox').open(G)"); await run("O('cutitem').pickup(G)");
 await run("O('guard').give.choklad(G)"); await ff();
-await run("G.switchTo('per')"); await page.waitForTimeout(150); await run("O('alarm').use(G)"); await page.waitForTimeout(150);
+// WIRES close-up (Rikard, not Per)
+await run("G.switchTo('rikard')"); await place(452); await run("O('alarm').use(G)"); await page.waitForTimeout(200); await shot("07-wires");
+await run("G.modalSolve()");
 await run("G.party[1].x=521; G.party[1].target=null;"); await page.waitForTimeout(200);
 await place(600); await shot("08-heist-vault");
 await run("O('vault').open(G)"); await ff(); await page.waitForTimeout(300); await ff();
 
-// CONTROL ROOM
+// CONTROL + ROOF
 await place(300); await shot("08b-control");
-await run("G.switchTo('per')"); await run("O('lasers').use(G)"); await page.waitForTimeout(150);
-await run("O('lever').use(G)"); await run("O('prototype').pickup(G)"); await run("O('evidence').pickup(G)");
-await run("O('curator').talk(G)"); await ff();
-await run("O('stairs').use(G)"); await ff(); await page.waitForTimeout(200); await ff();
-
-// ROOFTOP
+await run("G.switchTo('per')"); await run("O('lasers').use(G)"); await run("O('lever').use(G)"); await run("O('prototype').pickup(G)"); await run("O('evidence').pickup(G)");
+await run("O('curator').talk(G)"); await ff(); await run("O('stairs').use(G)"); await ff(); await page.waitForTimeout(200); await ff();
 await shot("09-roof");
-await run("O('drone').use(G)"); await page.waitForTimeout(200);
-await run("O('master').pickup(G)"); await ff(); await page.waitForTimeout(400); await ff();
+await run("O('drone').use(G)"); await page.waitForTimeout(150); await run("O('master').pickup(G)"); await ff(); await page.waitForTimeout(400); await ff();
 
-// ÖLBACKEN
+// PUB + CHUG
 await shot("10-pub");
 await run("O('tab').give.card(G)"); await run("O('keg').use(G)"); await run("O('band').give.beer(G)"); await run("O('food').use(G)");
-await page.waitForTimeout(250); await place(300); await run("O('crew').talk(G)"); await page.waitForTimeout(250); await shot("10b-pub-live");
-await run("O('home').use(G)"); await ff(); await page.waitForTimeout(500); await ff(); await page.waitForTimeout(600);
-await shot("11-ending");
+await place(392); await run("O('chug').use(G)"); await page.evaluate(()=>{ if(window.__MM.modal) window.__MM.modal.level=0.45; }); await page.waitForTimeout(150); await shot("10b-chug");
+await run("G.modalSolve()");
+await run("O('home').use(G)"); await page.waitForTimeout(700); await shot("10c-ridehome"); await finishBike();
+await page.waitForTimeout(600); await shot("11-ending");
 
 await browser.close(); server.close(); console.log("done");

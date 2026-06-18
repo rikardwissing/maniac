@@ -3,7 +3,7 @@
 import { rect, frame, sprite, mix } from "./pixel.js";
 import {
   ROOM_W, ROOM_H, ACTOR, ACTOR_W, ACTOR_H, SKINS, ICONS, actorShadow,
-  drawPortrait, drawAccessory, TEAM,
+  drawPortrait, drawAccessory, paintBikeRide, TEAM,
 } from "./art.js";
 import { sfx, playMusic } from "./audio.js";
 
@@ -63,6 +63,7 @@ export const G = {
   ending: null,
   onWin: null,
   card: null,                      // full-screen cutscene card {draw, lines, until}
+  modal: null,                     // close-up mini-game overlay (keypad/chug/wires)
   nextBark: 0,                     // ambient one-liner scheduler
   runStart: null, runTime: null,   // overall speedrun timer
   heistStart: null, vaultClock: null, // the 90-minute escape clock
@@ -234,6 +235,168 @@ function beginAdventure(ids) {
   fadeTo(() => { enterRoom("office", {}); G.scene = "play"; G.runStart = G.t; G.nextBark = G.t + 8; });
 }
 
+/* ============================================ close-up modal mini-games = */
+// Keypad: punch in a code. Chug: mash to empty the glass. Wires: snip the
+// right one. All forgiving; Esc cancels. Each calls then() on success.
+G.openKeypad = (code, then) => { G.modal = { type: "keypad", code, entry: "", bad: 0, then }; };
+G.openChug = (then) => { G.modal = { type: "chug", level: 1, presses: 0, start: G.t, then }; };
+G.openWires = (answer, hint, then) => { G.modal = { type: "wires", answer, hint, bad: 0, then }; };
+G.modalSolve = () => { const m = G.modal; if (!m) return; G.modal = null; if (m.then) m.then(); }; // test hook
+
+const KP_KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "C", "0", "OK"];
+function keypadLayout() {
+  const w = 30, h = 18, gx = 4, gy = 4, cols = 3;
+  const bw = cols * w + (cols - 1) * gx, x0 = (SCREEN_W - bw) / 2, y0 = 60;
+  return KP_KEYS.map((k, i) => ({ k, x: x0 + (i % cols) * (w + gx), y: y0 + ((i / cols) | 0) * (h + gy), w, h }));
+}
+const WIRE_COLS = ["#d23b2b", "#e8902f", "#f2d04a", "#3f7fb0", "#46b85c"];
+const WIRE_NAMES = ["RED", "ORANGE", "YELLOW", "BLUE", "GREEN"];
+function wireX(i) { return 70 + i * 38; }
+
+function modalKeypadPress(k) {
+  const m = G.modal;
+  if (k === "C") { m.entry = ""; sfx("verb"); return; }
+  if (k === "OK") {
+    if (m.entry === m.code) { sfx("unlock"); G.flash(); G.modalSolve(); }
+    else { sfx("error"); m.bad = G.t + 0.4; m.entry = ""; }
+    return;
+  }
+  if (m.entry.length < m.code.length) { m.entry += k; sfx("verb"); }
+}
+
+function modalClick(x, y) {
+  const m = G.modal; if (!m) return;
+  if (m.type === "keypad") {
+    for (const b of keypadLayout()) if (x >= b.x && x < b.x + b.w && y >= b.y && y < b.y + b.h) { modalKeypadPress(b.k); return; }
+  } else if (m.type === "chug") {
+    m.level -= 0.11; m.presses++; sfx("walk");
+    if (m.level <= 0) { const t = G.t - m.start; G.chugTime = t; sfx("tada"); G.modalSolve(); }
+  } else if (m.type === "wires") {
+    for (let i = 0; i < 5; i++) if (Math.abs(x - wireX(i)) < 16 && y > 70 && y < 120) {
+      if (i === m.answer) { sfx("unlock"); G.flash(); G.modalSolve(); }
+      else { sfx("error"); m.bad = G.t + 0.4; }
+      return;
+    }
+  }
+}
+function modalKey(e) {
+  const m = G.modal; if (!m) return;
+  if (e.key === "Escape") { G.modal = null; return; }
+  if (m.type === "keypad") {
+    if (e.key >= "0" && e.key <= "9") modalKeypadPress(e.key);
+    else if (e.key === "Enter") modalKeypadPress("OK");
+    else if (e.key === "Backspace") modalKeypadPress("C");
+  } else if (m.type === "chug") {
+    if (e.key === " " || e.key === "ArrowUp") { e.preventDefault(); modalClick(-1, -1); }
+  } else if (m.type === "wires") {
+    if (e.key >= "1" && e.key <= "5") { const i = +e.key - 1; if (i === m.answer) { sfx("unlock"); G.flash(); G.modalSolve(); } else { sfx("error"); m.bad = G.t + 0.4; } }
+  }
+}
+function updateModal(dt) {
+  const m = G.modal; if (!m) return;
+  if (m.type === "chug") { m.level = Math.min(1, m.level + 0.16 * dt); } // foam creeps back — keep mashing
+}
+function renderModal(ctx) {
+  const m = G.modal; if (!m) return;
+  ctx.fillStyle = "rgba(4,6,12,0.82)"; ctx.fillRect(0, 0, SCREEN_W, ROOM_H);
+  const bad = m.bad && G.t < m.bad;
+  if (m.type === "keypad") {
+    text(ctx, "ENTER THE CODE", SCREEN_W / 2, 18, "#f2d04a", { align: "center" });
+    // display
+    const dispW = 96, dx = (SCREEN_W - dispW) / 2;
+    rect(ctx, dx, 34, dispW, 16, bad ? "#3a1014" : "#0c1810"); frame(ctx, dx, 34, dispW, 16, "#2a3550");
+    text(ctx, (m.entry + "____".slice(m.entry.length)).split("").join(" "), SCREEN_W / 2, 39, "#34d0b4", { align: "center" });
+    for (const b of keypadLayout()) {
+      const hov = pointIn(G.mouse, b.x, b.y, b.w, b.h);
+      rect(ctx, b.x, b.y, b.w, b.h, hov ? "#1b4a40" : "#15202a"); frame(ctx, b.x, b.y, b.w, b.h, "#2a3550");
+      text(ctx, b.k, b.x + b.w / 2, b.y + 6, b.k === "OK" ? "#46b85c" : b.k === "C" ? "#e8902f" : "#d6d6d0", { align: "center" });
+    }
+  } else if (m.type === "chug") {
+    text(ctx, "CHUG!  mash space / click", SCREEN_W / 2, 16, "#f2d04a", { align: "center" });
+    const gx = SCREEN_W / 2 - 16, gy = 34, gw = 32, gh = 74;
+    rect(ctx, gx - 2, gy - 2, gw + 4, gh + 4, "#d6d6d0");
+    rect(ctx, gx, gy, gw, gh, "#1a1206");
+    const fill = Math.max(0, Math.min(1, m.level));
+    const fh = Math.round(gh * fill);
+    rect(ctx, gx, gy + (gh - fh), gw, fh, "#e8902f");
+    rect(ctx, gx, gy + (gh - fh), gw, Math.min(4, fh), "#f6e6b0"); // foam
+    text(ctx, Math.round(fill * 100) + "%", SCREEN_W / 2, gy + gh + 8, "#9fe0d6", { align: "center" });
+  } else if (m.type === "wires") {
+    text(ctx, "CUT THE RIGHT WIRE", SCREEN_W / 2, 16, "#f2d04a", { align: "center" });
+    if (m.hint) text(ctx, m.hint, SCREEN_W / 2, 28, bad ? "#d23b2b" : "#9fe0d6", { align: "center" });
+    rect(ctx, 50, 64, 200, 8, "#2a2f3a"); rect(ctx, 50, 116, 200, 8, "#2a2f3a");
+    for (let i = 0; i < 5; i++) { rect(ctx, wireX(i) - 2, 70, 4, 48, WIRE_COLS[i]); text(ctx, String(i + 1), wireX(i), 124, "#8a93a6", { align: "center" }); }
+  }
+  if (Math.sin(G.t * 4) > 0) text(ctx, "ESC to step back", SCREEN_W / 2, ROOM_H - 8, "#5a6678", { align: "center", size: 8 });
+}
+
+/* ----------------------------------------------------- bike mini-game -- */
+// A short, forgiving side-scroller: hop the obstacles (space / up / click).
+// Never fails — crashes just slow you down; reach the end to arrive.
+const BIKE_PX = 70;            // cyclist screen x
+G.startBike = (opts = {}) => {
+  const obstacles = [];
+  for (let i = 0; i < 6; i++) obstacles.push({ pos: 20 + i * 13 + (i * 37 % 5), resolved: false, kind: i % 2 });
+  G.bike = { dist: 0, total: 100, scroll: 0, y: 0, vy: 0, crashes: 0, slow: 0, obstacles, night: !!opts.night, then: opts.then };
+  G.scene = "bike";
+  playMusic("street");
+};
+function bikeHop() { const b = G.bike; if (b && b.y <= 0.5) { b.vy = 46; sfx("walk"); } }
+function bikeFinish() {
+  const b = G.bike; if (!b) return;
+  const cb = b.then; G.bike = null; G.scene = "play";
+  if (cb) cb();
+}
+function updateBike(dt) {
+  const b = G.bike; if (!b) return;
+  b.slow = Math.max(0, b.slow - dt);
+  const base = b.slow > 0 ? 6 : 17;
+  b.dist += base * dt; b.scroll += base * dt;
+  b.vy -= 110 * dt; b.y += b.vy * dt; if (b.y < 0) { b.y = 0; b.vy = 0; }
+  for (const o of b.obstacles) {
+    if (!o.resolved && b.dist >= o.pos) { o.resolved = true; if (b.y < 8) { b.crashes++; b.slow = 0.7; sfx("error"); } else sfx("coin"); }
+  }
+  if (b.dist >= b.total) bikeFinish();
+}
+function renderBike(ctx) {
+  const b = G.bike; if (!b) return;
+  ctx.imageSmoothingEnabled = false;
+  paintBikeRide(ctx, b.scroll, b.night);
+  // obstacles
+  for (const o of b.obstacles) {
+    const sx = BIKE_PX + (o.pos - b.dist) * 6;
+    if (sx < -10 || sx > ROOM_W + 10) continue;
+    if (o.kind === 0) { ctx.fillStyle = "#15151b"; ctx.beginPath(); ctx.ellipse(sx, 121, 9, 3, 0, 0, Math.PI * 2); ctx.fill(); } // pothole
+    else { rect(ctx, sx - 6, 112, 12, 7, "#6a6f78"); rect(ctx, sx - 6, 112, 12, 2, "#8a8f98"); } // cobble bump
+  }
+  // cyclist
+  const cy = 120 - Math.round(b.y);
+  drawCyclist(ctx, BIKE_PX, cy, b.night, G.t, G.player ? G.player.skin : null);
+  // HUD
+  rect(ctx, 8, 10, ROOM_W - 16, 6, "rgba(0,0,0,0.4)");
+  rect(ctx, 9, 11, Math.round((ROOM_W - 18) * Math.min(1, b.dist / b.total)), 4, "#46b85c");
+  text(ctx, b.night ? "RIDE HOME" : "TO THE VAULT", 10, 20, "#f2d04a", { size: 8 });
+  text(ctx, "HOP: space / click", SCREEN_W - 4, 20, "#9fe0d6", { align: "right", size: 8 });
+  if (b.crashes) text(ctx, "wipeouts: " + b.crashes, SCREEN_W - 4, 30, "#e8902f", { align: "right", size: 8 });
+  if (Math.sin(G.t * 4) > 0) text(ctx, "ESC to skip", SCREEN_W / 2, SCREEN_H - 12, "#5a6678", { align: "center", size: 8 });
+  renderCursor(ctx);
+}
+function drawCyclist(ctx, x, y, night, t, skin) {
+  const spoke = night ? "#cfd6e0" : "#15151b";
+  for (const wx of [x - 8, x + 8]) {
+    ctx.strokeStyle = spoke; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.arc(wx, y, 6, 0, Math.PI * 2); ctx.stroke();
+    const a = t * 16; ctx.beginPath(); ctx.moveTo(wx + Math.cos(a) * 6, y + Math.sin(a) * 6); ctx.lineTo(wx - Math.cos(a) * 6, y - Math.sin(a) * 6); ctx.stroke();
+  }
+  const col = (skin && skin.t) ? skin.t : "#00a98f";
+  ctx.strokeStyle = col; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(x - 8, y); ctx.lineTo(x, y); ctx.lineTo(x + 8, y); ctx.moveTo(x, y); ctx.lineTo(x + 2, y - 9); ctx.stroke();
+  rect(ctx, x - 11, y - 10, 6, 2, "#3a3a44");
+  rect(ctx, x - 2, y - 18, 6, 10, col);          // torso
+  rect(ctx, x - 1, y - 24, 5, 6, "#e8b890");      // head
+  rect(ctx, x - 2, y - 26, 7, 3, "#3f7fb0");      // helmet!
+}
+
 // The 90-minute escape clock, ticked at 6× so it visibly counts down.
 const ESCAPE_BUDGET = 90 * 60;   // displayed seconds (90:00)
 G.escapeLeft = () => {
@@ -273,6 +436,12 @@ function bindInput() {
 }
 
 function onKey(e) {
+  if (G.modal) { modalKey(e); return; }
+  if (G.scene === "bike") {
+    if (e.key === " " || e.key === "ArrowUp" || e.key.toLowerCase() === "w") { e.preventDefault(); bikeHop(); }
+    else if (e.key === "Escape") bikeFinish();
+    return;
+  }
   if (e.key === "Escape" && G.choices) { G.choices = null; return; }
   if (G.scene !== "play" || G.cs) return;
   if (e.key >= "1" && e.key <= "9") { const i = +e.key - 1; if (i < G.party.length) G.switchTo(i); }
@@ -334,7 +503,9 @@ function onClick() {
   const { x, y } = G.mouse;
 
   if (G.scene === "select") { clickSelect(x, y); return; }
+  if (G.scene === "bike") { bikeHop(); return; }
   if (G.scene === "end") { if (G.ending && G.ending.replay) location.reload(); return; }
+  if (G.modal) { modalClick(x, y); return; }
 
   // a cutscene card: click to skip it
   if (G.card) { G.card.until = 0; return; }
@@ -657,6 +828,7 @@ function loop(ts) {
   G.last = ts; G.t = ts / 1000;
   const now = G.t;
 
+  if (G.scene === "bike") { updateBike(dt); updateFade(dt); render(); requestAnimationFrame(loop); return; }
   if (G.scene === "play" && G.state.room) {
     G.actors.forEach((a) => updateActor(a, dt));
     G.party.forEach((a) => updateActor(a, dt));
@@ -664,7 +836,7 @@ function loop(ts) {
     updateCS(now);
     const tickRoom = G.rooms[G.state.room];
     if (tickRoom && tickRoom.tick) tickRoom.tick(G);
-    maybeBark(now, tickRoom);
+    if (G.modal) updateModal(dt); else maybeBark(now, tickRoom);
     // smooth side-scroll camera follows the active crew member
     const room = G.rooms[G.state.room];
     const w = (room && room.width) || ROOM_W;
@@ -700,6 +872,7 @@ function render() {
   ctx.clearRect(0, 0, SCREEN_W, SCREEN_H);
 
   if (G.scene === "select") { renderSelect(ctx); renderCursor(ctx); return; }
+  if (G.scene === "bike") { renderBike(ctx); if (G.fade > 0) { ctx.fillStyle = `rgba(0,0,0,${G.fade})`; ctx.fillRect(0, 0, SCREEN_W, SCREEN_H); } return; }
   if (G.scene === "end") { renderEnding(ctx); return; }
 
   const room = G.rooms[G.state.room];
@@ -727,6 +900,7 @@ function render() {
   drawHint(ctx);
   drawPanel(ctx);
   if (G.choices) drawChoices(ctx);
+  if (G.modal) renderModal(ctx);
   if (G.card) drawCard(ctx);
   if (G.flashUntil && G.t < G.flashUntil) {
     const a = (G.flashUntil - G.t) / 0.5;

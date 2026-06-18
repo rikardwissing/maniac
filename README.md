@@ -77,6 +77,17 @@ several gate puzzles.
 The run is timed (with the 90-minute **escape clock**), and the ending grades
 your speed — Bronze → **Platinum**.
 
+## Mini-games
+
+- **Bike ride** — pedal across town to The Vault (helmet required) and home
+  again: hop the potholes (space / click). A short, forgiving side-scroller.
+- **Keypad** — punch the safe code in on a close-up keypad.
+- **Wire-cut** — snip the right alarm wire in close-up.
+- **Beer chug** — mash to empty the glass at Ölbacken for bragging rights.
+
+(Specialists skip the close-ups — Caroline just *knows* the code, Per kills the
+alarm bare-handed — so they're optional flair, not friction.)
+
 ## Everything is hand-made
 
 - **Art** — every crew sprite (shared rig, recoloured; long-hair variant) and
