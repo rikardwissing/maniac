@@ -156,6 +156,11 @@ export const SKINS = {
   oskar:    { h: "#23232a", H: "#121217", t: "#e8902f", T: "#b56a18" },
   caroline: { h: "#e8c451", H: "#c9a82f", t: "#e87fb0", T: "#b5527f", long: true },
   per:      { h: "#2a2a30", H: "#141418", t: "#33405e", T: "#202a40" },
+  // interactive NPCs (old-school adventure-game cast)
+  host:     { h: "#3a2a18", H: "#241409", t: "#7a1f2b", T: "#511019" },  // Game Master, red vest
+  guard:    { h: "#2a2a30", H: "#141418", t: "#26406a", T: "#172a4a" },  // bank guard, navy
+  bartend:  { h: "#3a2a18", H: "#241409", t: "#1f6a5a", T: "#124a3e" },  // bartender, teal
+  busker:   { h: "#6a4326", H: "#3c2615", t: "#7a5a8f", T: "#4d2259" },  // street busker
 };
 
 // id, name, role, skin key, blurb, long-hair flag.
@@ -245,6 +250,12 @@ export const ICONS = {
     "  yyyyyyyyyyyy  ","  yykkkkkkkyyo  ","  yyyyyyyyyooo  ","  yyyyyyyyoooo  ",
     "                ","                ","                ","                ",
   ],
+  choklad: [   // a bar of Cloetta chocolate (Linköping's finest)
+    "                ","   rrrrrrrrrr   ","   rWWWWWWWWr   ","   rWEEEEEEWr   ",
+    "   rWEHEHEEWr   ","   rWEEEEHEWr   ","   rWEHEEEEWr   ","   rWEEEHEEWr   ",
+    "   rWEEEEEEWr   ","   rWWWWWWWWr   ","   rrrrrrrrrr   ","                ",
+    "                ","                ","                ","                ",
+  ],
 };
 
 export function actorShadow(ctx, cx, cy, w, scale) {
@@ -253,6 +264,21 @@ export function actorShadow(ctx, cx, cy, w, scale) {
   for (let i = -rw; i <= rw; i++) {
     const h = Math.sqrt(Math.max(0, 1 - (i / rw) * (i / rw))) * 2.4 * scale;
     ctx.fillRect((cx + i) | 0, (cy - h / 2) | 0, 1, Math.max(1, h) | 0);
+  }
+}
+
+// Draw an NPC accessory on top of the shared rig, in sprite-cell space.
+// x,y = sprite top-left, sc = scale. Keeps NPCs visually distinct.
+export function drawAccessory(ctx, type, x, y, sc) {
+  const C = (cx, cy, cw, ch, col) => { ctx.fillStyle = col; ctx.fillRect(Math.floor(x + cx * sc), Math.floor(y + cy * sc), Math.ceil(cw * sc), Math.ceil(ch * sc)); };
+  if (type === "cap") {            // guard's peaked cap
+    C(3, 1, 10, 3, "#16233f"); C(2, 3, 12, 1, "#0e1830"); C(1, 4, 7, 1, "#0e1830"); C(7, 2, 2, 1, "#c9a82f");
+  } else if (type === "beanie") {  // busker's beanie
+    C(3, 0, 10, 3, "#2c8540"); C(2, 2, 12, 2, "#2c8540"); C(3, 0, 2, 1, "#46b85c");
+  } else if (type === "apron") {   // bartender's apron
+    C(4, 12, 8, 9, "#d8d2c0"); C(5, 12, 6, 1, "#b8b2a0"); C(7, 12, 2, 2, "#9a948a");
+  } else if (type === "bowtie") {  // host's bow tie
+    C(6, 11, 4, 2, "#c9a82f"); C(7, 11, 2, 2, "#7a1f2b");
   }
 }
 
@@ -431,6 +457,14 @@ export function paintHeist(ctx, t, st) {
   else rect(ctx, 224, 96, 4, 2, "#c9a82f");
   sprite(ctx, ICONS.ledger, 214, 70, { scale: 0.9 });
 
+  // vending machine (Cloetta chocolate) between the desk and the safe
+  rect(ctx, 264, 52, 28, 48, "#9a2417"); frame(ctx, 264, 52, 28, 48, "#d23b2b");
+  rect(ctx, 267, 55, 16, 26, "#11141a");
+  for (let r = 0; r < 3; r++) for (let c = 0; c < 2; c++) rect(ctx, 269 + c * 7, 57 + r * 8, 5, 6, "#8a5a2b");
+  rect(ctx, 285, 57, 5, 12, "#2a2f3a"); for (let i = 0; i < 3; i++) rect(ctx, 286, 58 + i * 3, 3, 2, "#46b85c");
+  rect(ctx, 267, 84, 18, 5, "#15151d"); // dispenser tray
+  textTiny(ctx, 266, 92, "CLOETTA", "#f2d04a");
+
   // --- Station 4: the SAFE / vault (x ~ 320) ---
   const sx = 300;
   rect(ctx, sx, 30, 70, 64, "#2a2f3a"); frame(ctx, sx, 30, 70, 64, "#566075");
@@ -585,6 +619,22 @@ function cyclist(ctx, x, y, col, t, night) {
   rect(ctx, x - 2, y - 16 + bob, 6, 9, col);
   rect(ctx, x - 1, y - 22 + bob, 5, 6, "#e8b890");
   rect(ctx, x - 1, y - 24 + bob, 5, 3, night ? "#222831" : "#3a2414");
+}
+
+// Opening title card: a vault under a spotlight.
+export function paintTitleCard(ctx, t) {
+  vGradient(ctx, 0, 0, ROOM_W, ROOM_H, "#161020", "#06060c", 12);
+  // spotlight cone
+  ctx.fillStyle = "rgba(242,208,74,0.10)";
+  ctx.beginPath(); ctx.moveTo(160, 0); ctx.lineTo(96, 120); ctx.lineTo(224, 120); ctx.closePath(); ctx.fill();
+  // a big vault door
+  rect(ctx, 128, 36, 64, 64, "#222833"); frame(ctx, 128, 36, 64, 64, "#4a5160");
+  rect(ctx, 134, 42, 52, 52, "#161b24");
+  ctx.strokeStyle = "#8a93a6"; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.arc(160, 68, 16, 0, Math.PI * 2); ctx.stroke(); ctx.lineWidth = 1;
+  for (let a = 0; a < 8; a++) { const an = a / 8 * Math.PI * 2 + t; px(ctx, (160 + Math.cos(an) * 22) | 0, (68 + Math.sin(an) * 22) | 0, "#c9a82f"); }
+  // glint
+  if (Math.sin(t * 4) > 0.6) px(ctx, 150, 54, "#fff4c0");
 }
 
 /* ---------------------------- prop helpers ----------------------------- */

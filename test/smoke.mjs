@@ -92,11 +92,14 @@ try {
   s = await state(); console.log("after office:", JSON.stringify(s));
   must(s.room === "street", "expected street, got " + s.room);
 
-  // ---- STREET: read code -> buzz in ----
-  await run("O('venue').use(G)");                 // blocked: no PIN yet
-  must((await state()).room === "street", "venue opened without PIN");
-  await run("O('board').look(G)");                // learn PIN
-  await run("O('venue').use(G)"); await ff(); await page.waitForTimeout(200); await ff();
+  // ---- STREET: read the board, then tell the host (NPC) your team name ----
+  await run("O('host').talk(G)");                 // host: check the board first
+  must((await state()).room === "street", "entered before knowing the booking");
+  await run("O('busker').talk(G)");               // flavour NPC
+  await run("O('board').look(G)");                // learn the booking
+  await run("O('host').talk(G)");                 // host asks which team
+  await run("G.choices.list[0].fn(G)");           // answer "Teamtailor"
+  await ff(); await page.waitForTimeout(200); await ff();
   s = await state(); console.log("after street:", JSON.stringify(s));
   must(s.room === "heist", "expected heist, got " + s.room);
 
@@ -108,7 +111,12 @@ try {
   await run("O('safe').use(G)");
   await run("O('loot').pickup(G)");
   await run("O('toolbox').open(G)"); await run("O('cutitem').pickup(G)");
-  await run("O('alarm').use(G)");    // uses wire cutters (no Per in squad)
+  // NPC puzzle: the guard blocks the alarm until distracted with Cloetta
+  await run("O('vending').use(G)");  // get the chocolate
+  await run("O('alarm').use(G)");    // blocked — guard present
+  must(!(await page.evaluate(() => window.__MM.flag("alarmOff"))), "alarm cut with guard present");
+  await run("O('guard').give.choklad(G)"); // distract the guard
+  await run("O('alarm').use(G)");    // now cuts with wire cutters
   // co-op: park a teammate on the plate, then operate the vault as another
   await run("O('vault').open(G)");   // blocked: nobody on plate
   must((await state()).room === "heist", "vault opened with no power");

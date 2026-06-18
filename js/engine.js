@@ -3,7 +3,7 @@
 import { rect, frame, sprite, mix } from "./pixel.js";
 import {
   ROOM_W, ROOM_H, ACTOR, ACTOR_W, ACTOR_H, SKINS, ICONS, actorShadow,
-  drawPortrait, TEAM,
+  drawPortrait, drawAccessory, TEAM,
 } from "./art.js";
 import { sfx, playMusic } from "./audio.js";
 
@@ -186,6 +186,7 @@ function makeActor(def) {
     id: def.id, kind: def.kind || "human", skin,
     name: def.name || meta.name || def.id,
     role: def.role || meta.role || "",
+    accessory: def.accessory || null,
     long: def.long !== undefined ? def.long : !!meta.long,
     x: def.x, y: def.y, dir: def.dir || "front",
     frame: 0, anim: 0, target: null, onArrive: null,
@@ -212,6 +213,9 @@ G.switchTo = (i) => {
 };
 G.activeId = () => (G.player ? G.player.id : null);
 G.activeName = () => (G.player ? G.player.name : "");
+
+// Brief golden flash + chime when a specialist nails their own station.
+G.flash = () => { G.flashUntil = G.t + 0.5; sfx("tada"); };
 
 // Build the chosen squad of 3 and start the night.
 function beginAdventure(ids) {
@@ -719,8 +723,19 @@ function render() {
   drawPanel(ctx);
   if (G.choices) drawChoices(ctx);
   if (G.card) drawCard(ctx);
+  if (G.flashUntil && G.t < G.flashUntil) {
+    const a = (G.flashUntil - G.t) / 0.5;
+    ctx.fillStyle = `rgba(242,208,74,${0.35 * a})`; ctx.fillRect(0, 0, ROOM_W, ROOM_H);
+  }
   if (G.fade > 0) { ctx.fillStyle = `rgba(0,0,0,${G.fade})`; ctx.fillRect(0, 0, SCREEN_W, SCREEN_H); }
   renderCursor(ctx);
+}
+
+function runRank(sec) {
+  if (sec < 90) return "PLATINUM";
+  if (sec < 150) return "GOLD";
+  if (sec < 240) return "SILVER";
+  return "BRONZE";
 }
 
 function fmtTime(sec) {
@@ -803,6 +818,7 @@ function drawActor(ctx, a) {
   }
   const bob = stepping ? Math.round(Math.sin(a.anim * Math.PI)) : 0;
   sprite(ctx, frames, x, y + bob, { scale: sc, flip, override: a.skin });
+  if (a.accessory) drawAccessory(ctx, a.accessory, x, y + bob, sc);
 }
 
 function drawSpeech(ctx, camX) {
@@ -950,7 +966,8 @@ function renderEnding(ctx) {
   const extra = [];
   if (G.runTime != null) extra.push("Run " + fmtTime(G.runTime));
   if (G.vaultClock != null) extra.push("Vault clock " + fmtTime(G.vaultClock));
-  if (extra.length) text(ctx, extra.join("  ·  "), SCREEN_W / 2, 146, "#f2d04a", { align: "center" });
+  if (extra.length) text(ctx, extra.join("  ·  "), SCREEN_W / 2, 140, "#f2d04a", { align: "center" });
+  if (G.runTime != null) text(ctx, "RANK: " + runRank(G.runTime), SCREEN_W / 2, 152, "#34d0b4", { align: "center" });
 
   // the whole crew lined up, raising a glass
   const n = G.party.length || TEAM.length;
@@ -961,8 +978,8 @@ function renderEnding(ctx) {
     const cx = 10 + cw * i + cw / 2;
     sprite(ctx, m.long ? ACTOR.FRONT_L : ACTOR.FRONT, cx - ACTOR_W * 1.2 / 2, 104, { scale: 1.2, override: m.skin });
   }
-  text(ctx, "Skål! / Cheers!", SCREEN_W / 2, 158, "#f2d04a", { align: "center" });
+  text(ctx, "Skål! / Cheers!", SCREEN_W / 2, 168, "#f2d04a", { align: "center" });
   const blink = Math.sin(G.t * 3) > 0;
-  if (blink) text(ctx, "click to play again", SCREEN_W / 2, 182, "#9fe0d6", { align: "center" });
+  if (blink) text(ctx, "click to play again", SCREEN_W / 2, 184, "#9fe0d6", { align: "center" });
   renderCursor(ctx);
 }

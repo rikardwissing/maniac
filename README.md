@@ -39,18 +39,27 @@ Open `index.html` in any modern browser, or play the deployed build.
   a teammate in the scene. The camera follows whoever you control.
 - **H** = Oskar's hint · **F** = fullscreen · **M** = mute.
 
+There's a small cast of **NPCs to talk to** (old-school adventure style): a
+Game-Master **host**, a street **busker**, a bank **guard**, and a **bartender** —
+two of them gate puzzles.
+
 ### How to win (spoilers)
 1. **Office** — dig the cabinet key out of the plant → open the supply
    cabinet → take the keycard + company card → badge out.
-2. **Street** — read the noticeboard for the door code (`2013`) → buzz into
-   *The Vault*.
+2. **Street** — read the noticeboard for the booking, then **talk to the
+   host** and give your team name (*Teamtailor*) to get in.
 3. **Heist** — UV the poster (blacklight from the drawer, *or* Rikard's
-   phone) → cipher wheel → safe code `4 8 7 3` → grab the loot → cut the
-   alarm (wire cutters from the toolbox, *or* Per) → **co-op:** stand one
-   teammate on the pressure plate to power the vault, switch to another and
-   open it.
-4. **Ölbacken** — company card on the tab → tap the keg → give a beer to the
-   band for live music → eat → chat with the crew → head home. *Skål!* 🍻
+   phone) → cipher wheel → safe code `4 8 7 3` → grab the loot → buy a
+   **Cloetta bar** from the vending machine and **give it to the guard** to
+   clear the alarm → cut the alarm (wire cutters, *or* Per) → **co-op:** stand
+   one teammate on the pressure plate to power the vault, switch to another
+   and open it.
+4. **Ölbacken** — company card to the **bartender** to open a tab → tap the
+   keg → give a beer to the band for live music → eat → chat with the crew →
+   head home. *Skål!* 🍻
+
+The whole run is timed (with a nod to the 90-minute **escape clock**), and the
+ending grades your speed — Bronze → **Platinum**.
 
 ## Everything is hand-made
 

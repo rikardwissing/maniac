@@ -19,15 +19,20 @@ await page.click("#startBtn"); await page.waitForTimeout(300);
 await run("G.selected=['rikard','caroline']"); await page.waitForTimeout(60); await shot("02-roster");
 await run("G.selected=['rikard','caroline','per']"); await page.waitForTimeout(60);
 const rect = await page.evaluate(()=>{const c=document.getElementById("screen").getBoundingClientRect();return{l:c.left,t:c.top,w:c.width,h:c.height};});
-await page.mouse.click(rect.l+rect.w/2, rect.t+(179/200)*rect.h); await ff();
+await page.mouse.click(rect.l+rect.w/2, rect.t+(179/200)*rect.h);
+// capture the opening title card
+await page.evaluate(async()=>{const G=window.__MM;for(let i=0;i<60;i++){if(G.card)break;await new Promise(r=>setTimeout(r,40));}});
+await page.waitForTimeout(300); await shot("02b-titlecard");
+await ff();
 await shot("03-office");
 
 // OFFICE
 await run("O('plant').pickup(G)"); await run("O('cabinet').open(G)"); await run("O('badges').pickup(G)");
 await run("O('door').open(G)"); await ff(); await page.waitForTimeout(200); await ff();
 await place(380); await shot("04-street");
-await run("O('board').look(G)"); await page.waitForTimeout(200); await shot("05-street-board");
-await run("O('venue').use(G)");
+await run("O('board').look(G)"); await page.waitForTimeout(150);
+await run("O('host').talk(G)"); await place(560); await page.waitForTimeout(250); await shot("05-host");
+await run("G.choices.list[0].fn(G)");
 // reach + capture the bike-ride card
 await page.evaluate(async()=>{const G=window.__MM;for(let i=0;i<40;i++){if(G.card)break;G.speech.length=0;G.current=null;await new Promise(r=>setTimeout(r,50));}});
 await page.waitForTimeout(400); await shot("05b-bikecard");
@@ -39,7 +44,11 @@ await run("O('poster').use(G)"); await page.waitForTimeout(250); await shot("06-
 await run("O('wheel').use(G)"); await ff();
 await run("G.switchTo('caroline')"); await place(330); await run("O('safe').use(G)"); await page.waitForTimeout(250); await shot("07-safe");
 await run("O('loot').pickup(G)");
-await run("G.switchTo('per')"); await place(452); await run("O('alarm').use(G)"); await page.waitForTimeout(150);
+// NPC: distract the guard with Cloetta, then Per cuts the alarm
+await run("O('vending').use(G)");
+await run("G.switchTo('per'); G.player.x=540; G.player.target=null; G.camX=300;"); await page.waitForTimeout(200); await shot("07b-guard");
+await run("O('guard').give.choklad(G)"); await ff();
+await run("G.switchTo('per')"); await page.waitForTimeout(150); await run("O('alarm').use(G)"); await page.waitForTimeout(150);
 // co-op: park Caroline on the plate, operate vault as Per
 await run("G.party[1].x=521; G.party[1].target=null;"); await page.waitForTimeout(200);
 await place(600); await shot("08-heist-vault");

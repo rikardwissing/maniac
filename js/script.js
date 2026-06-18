@@ -3,7 +3,7 @@
 // between them. Every scene is a puzzle. Office -> street -> bank-heist
 // escape room -> Ölbacken (the big one) -> home.
 import {
-  paintOffice, paintStreet, paintHeist, paintPub, paintBikeCard,
+  paintOffice, paintStreet, paintHeist, paintPub, paintBikeCard, paintTitleCard,
   OFFICE_W, STREET_W, HEIST_W, PUB_W,
 } from "./art.js";
 import { sfx } from "./audio.js";
@@ -20,6 +20,7 @@ export const items = {
   loot:    { name: "Bag of loot", look: () => "A duffel of (prop) cash. The whole point of a heist." },
   gold:    { name: "Gold bar", look: () => "Heavy, shiny, gloriously fake. Caroline already valued it." },
   beer:    { name: "Beer", look: () => "A cold one from the keg. Condensation and everything." },
+  choklad: { name: "Cloetta choklad", look: () => "A bar of Cloetta chocolate — made right here in Linköping." },
 };
 
 /* ============================================================= ROOMS ==== */
@@ -34,6 +35,7 @@ export const rooms = {
     onEnter: (G) => {
       if (!G.flag("introDone")) {
         G.cutscene([
+          { card: { draw: (ctx, t) => paintTitleCard(ctx, t), lines: ["THE HEIST AFTER WORK", "Teamtailor Linköping · yesterday"], wait: 3600 } },
           { say: ["player", "Yesterday. We split the product crew into escape-room teams. This is ours."] },
           { say: ["player", "Plan: crack the room, then AW at Ölbacken. First — badges, and the company card."] },
           { do: (g) => { g.hintMsg = { text: "Oskar: switch teammate with 1-3 or click a face. Press H any time for a hint.", until: g.t + 7 }; g.setFlag("introDone"); } },
@@ -97,9 +99,34 @@ export const rooms = {
     onEnter: (G) => {
       if (!G.flag("streetIntro")) { G.setFlag("streetIntro"); G.cutscene([{ say: ["player", "Downtown. 'The Vault' escape rooms are at the far end — but the door's on a code."] }]); }
     },
-    hint: (G) => !G.flag("knowPin") ? "Read the noticeboard (middle of the street) for tonight's door code." : "Use the buzzer at The Vault's entrance (far right).",
+    hint: (G) => !G.flag("knowPin") ? "Read the noticeboard for the booking, then talk to the host at The Vault's door." : "Talk to the host at The Vault's door (far right) and give your team name.",
     barks: ["Smells like Friday.", "Race you to the door.", "Sun's still up — good omen."],
+    actors: [
+      { id: "host", skin: "host", accessory: "bowtie", x: 588, y: 120, dir: "left", speechColor: "#e88aa0" },
+      { id: "busker", skin: "busker", accessory: "beanie", x: 126, y: 118, dir: "front", speechColor: "#c89fff" },
+    ],
     objects: [
+      {
+        id: "host", name: "the host", x: 572, y: 92, w: 34, h: 42,
+        walkTo: { x: 574, y: 122 }, defaultVerb: "talk",
+        look: () => "The escape-room Game Master, bow tie and clipboard, buzzing with patter.",
+        talk: (G) => {
+          if (G.flag("venueOpen")) { G.say("host", "Have fun in there — and mind the clock!"); return; }
+          if (!G.flag("knowPin")) { G.say("host", "Evening! Which team are you? If you've forgotten, tonight's board is right there."); return; }
+          G.say("host", "Evening! And which team do we have here?");
+          G.choose("Tell the host:", [
+            { text: "Teamtailor", fn: (g) => { g.setFlag("venueOpen"); g.say("host", "There you are — 17:00 slot. Ninety minutes, starts NOW. Go go go!"); enterVenue(g); } },
+            { text: "Spotify", fn: (g) => { sfx("error"); g.say("host", "Ha! Wrong building, friend."); } },
+            { text: "...the bank robbers?", fn: (g) => { g.say("host", "Aren't we all, tonight. The booking name?"); } },
+          ]);
+        },
+      },
+      {
+        id: "busker", name: "the busker", x: 112, y: 92, w: 32, h: 42,
+        walkTo: { x: 126, y: 122 }, defaultVerb: "talk",
+        look: () => "A street busker in a green beanie, strumming for coins.",
+        talk: (G) => G.say("busker", G.flag("knowPin") ? "Door code's on the board, ja — I busk to it nightly." : "Lost? Tonight's door codes are on that board over there."),
+      },
       {
         id: "board", name: "noticeboard", x: 356, y: 48, w: 50, h: 34,
         walkTo: { x: 378, y: 122 }, defaultVerb: "look",
@@ -111,8 +138,7 @@ export const rooms = {
         look: () => "A converted bank. Tonight's scenario: bank robbers. Fitting for a product team.",
         use: (G) => {
           if (G.flag("venueOpen")) return enterVenue(G);
-          if (G.flag("knowPin")) { G.setFlag("venueOpen"); sfx("unlock"); return enterVenue(G); }
-          sfx("error"); return "The buzzer wants a 4-digit code. I should find it — try the noticeboard.";
+          return "The Game Master's right at the door — I should talk to him.";
         },
       },
       { id: "cathedral", name: "the cathedral", x: 248, y: 6, w: 30, h: 56, look: () => "Linköping Cathedral. Older than banking, older than our backlog." },
@@ -129,6 +155,9 @@ export const rooms = {
     // co-op: the vault is powered only while someone stands on the plate (x 496..546)
     tick: (G) => G.setFlag("plateHeld", G.partyOnArea(496, 546)),
     barks: ["Colder than our staging env in here.", "Anyone else hear ticking?", "Ninety minutes. We've got this.", ["oskar", "Stuck? Press H — that's literally my job."]],
+    actors: [
+      { id: "guard", skin: "guard", accessory: "cap", x: 462, y: 122, dir: "left", speechColor: "#9fb4e0" },
+    ],
     onEnter: (G) => {
       if (G.heistStart == null) G.heistStart = G.t;   // start the 90-min escape clock
       if (!G.flag("heistIntro")) {
@@ -167,7 +196,7 @@ export const rooms = {
         look: () => "A bank poster. Faint marks — only visible under UV light.",
         use: (G) => {
           if (G.flag("uvSeen")) return "Under UV: a diamond, a triangle, a dot.";
-          if (is(G, "rikard")) { G.setFlag("uvSeen"); sfx("coin"); return "Rikard's phone has a UV torch — three glyphs glow: ◆ ▲ ●."; }
+          if (is(G, "rikard")) { G.setFlag("uvSeen"); G.flash(); return "Rikard's phone has a UV torch — three glyphs glow: ◆ ▲ ●."; }
           if (G.has("uvlight")) { G.setFlag("uvSeen"); sfx("coin"); return "I shine the blacklight — three glyphs glow: ◆ ▲ ●."; }
           sfx("error"); return "Faint marks. I need a UV light — or Rikard's phone.";
         },
@@ -180,11 +209,32 @@ export const rooms = {
         use: (G) => {
           if (G.flag("cipherDone")) return "Cracked already: 4 8 7 3.";
           if (!G.flag("uvSeen")) { sfx("error"); return "It needs three symbols aligned — find them first."; }
-          G.setFlag("cipherDone"); sfx("unlock");
-          return is(G, "emil") ? "Emil aligns ◆▲● in seconds — out pops 4-8-7-3!" : "We line up ◆▲●... it clacks out a code: 4-8-7-3!";
+          G.setFlag("cipherDone");
+          if (is(G, "emil")) { G.flash(); return "Emil aligns ◆▲● in seconds — out pops 4-8-7-3!"; }
+          sfx("unlock"); return "We line up ◆▲●... it clacks out a code: 4-8-7-3!";
         },
       },
       { id: "ledger", name: "the ledger", x: 206, y: 66, w: 30, h: 24, walkTo: { x: 220, y: 124 }, look: () => "The manager's ledger: 'never trust a wheel you can't read in the dark.'" },
+      {
+        id: "vending", name: "vending machine", x: 264, y: 52, w: 28, h: 48,
+        walkTo: { x: 278, y: 124 }, defaultVerb: "use",
+        look: (G) => G.flag("tookChoklad") ? "A Cloetta machine, one bar lighter." : "A Cloetta vending machine — hometown chocolate.",
+        use: (G) => { if (G.flag("tookChoklad")) return "Fresh out of my favourite. Tragic."; G.addItem("choklad"); G.setFlag("tookChoklad"); sfx("coin"); return "A bar of Cloetta choklad clunks into the tray. Linköping's finest."; },
+      },
+      {
+        id: "guard", name: "the guard", x: 446, y: 92, w: 34, h: 42,
+        walkTo: { x: 432, y: 124 }, defaultVerb: "talk",
+        visible: (G) => !G.flag("guardDistracted"),
+        look: () => "A bank guard, arms crossed, planted in front of the alarm panel.",
+        talk: (G) => G.say("guard", "Nothing gets past me. Especially not that alarm."),
+        give: { choklad: (G) => {
+          G.removeItem("choklad"); G.setFlag("guardDistracted"); sfx("coin");
+          const g = G.actors.find((a) => a.id === "guard"); if (g) g.target = { x: 330, y: 124 };
+          G.say("guard", "...is that Cloetta? Don't mind if I do.");
+          return "The guard pockets the chocolate and ambles off — the alarm's clear!";
+        } },
+        useWith: { choklad: (G) => rooms.heist.objects.find((o) => o.id === "guard").give.choklad(G) },
+      },
       {
         id: "safe", name: "the safe", x: 300, y: 30, w: 70, h: 64,
         walkTo: { x: 332, y: 124 }, defaultVerb: "use",
@@ -192,8 +242,9 @@ export const rooms = {
         use: (G) => {
           if (G.flag("safeOpen")) return G.flag("gotLoot") ? "Empty now." : "It's open — grab the loot!";
           if (!G.flag("cipherDone")) { sfx("error"); return "Four digits. I don't have the code yet."; }
-          G.setFlag("safeOpen"); sfx("unlock");
-          return is(G, "caroline") ? "Caroline keys in 4-8-7-3 like she's closing the month. CLUNK!" : "I punch in 4-8-7-3... CLUNK — open!";
+          G.setFlag("safeOpen");
+          if (is(G, "caroline")) { G.flash(); return "Caroline keys in 4-8-7-3 like she's closing the month. CLUNK!"; }
+          sfx("unlock"); return "I punch in 4-8-7-3... CLUNK — open!";
         },
       },
       {
@@ -220,11 +271,12 @@ export const rooms = {
         look: () => "A blinking alarm panel by the exit. Five wires.",
         use: (G) => {
           if (G.flag("alarmOff")) return "Alarm's dead.";
-          if (is(G, "per")) { G.setFlag("alarmOff"); sfx("unlock"); return "Per reads the wiring like prod logs and kills it bare-handed."; }
+          if (!G.flag("guardDistracted")) { sfx("error"); return "The guard's planted right in front of it. I'll have to distract him first."; }
+          if (is(G, "per")) { G.flash(); G.setFlag("alarmOff"); return "Per reads the wiring like prod logs and kills it bare-handed."; }
           if (G.has("wirecut")) { G.setFlag("alarmOff"); sfx("unlock"); return "Snip — the right wire. The alarm dies with a sad beep."; }
           sfx("error"); return "Five wires. I'd want wire cutters — or Per.";
         },
-        useWith: { wirecut: (G) => { if (!G.flag("alarmOff")) { G.setFlag("alarmOff"); sfx("unlock"); return "Snip. Alarm down."; } return "Already dead."; } },
+        useWith: { wirecut: (G) => { if (G.flag("alarmOff")) return "Already dead."; if (!G.flag("guardDistracted")) { sfx("error"); return "Not with the guard watching."; } G.setFlag("alarmOff"); sfx("unlock"); return "Snip. Alarm down."; } },
       },
       {
         id: "plate", name: "pressure plate", x: 496, y: 116, w: 50, h: 16,
@@ -252,9 +304,12 @@ export const rooms = {
     width: PUB_W, paint: paintPub, music: "bar",
     start: { x: 60, y: 120, dir: "right" },
     walk: { minX: 30, maxX: 540, minY: 112, maxY: 128, scaleMin: 1.25, scaleMax: 1.55 },
+    actors: [
+      { id: "bartend", skin: "bartend", accessory: "apron", x: 120, y: 118, dir: "front", speechColor: "#7fe0c0" },
+    ],
     onEnter: (G) => {
       // the teammates who weren't on the squad are already here — good company
-      (G.bench || []).forEach((m, i) => G.spawnActor({ id: m.id, skin: m.skin, x: 210 + i * 44, y: 122, dir: "front" }));
+      (G.bench || []).forEach((m, i) => G.spawnActor({ id: m.id, skin: m.skin, x: 214 + i * 44, y: 122, dir: "front" }));
       if (!G.flag("pubIntro")) {
         G.setFlag("pubIntro");
         G.cutscene([
@@ -291,6 +346,13 @@ export const rooms = {
         give: { card: (G) => openTab(G) },
       },
       {
+        id: "bartend", name: "the bartender", x: 104, y: 92, w: 34, h: 40,
+        walkTo: { x: 132, y: 120 }, defaultVerb: "talk",
+        look: () => "The bartender, apron on, towel over the shoulder, ready to pour.",
+        talk: (G) => G.say("bartend", G.flag("tabOpen") ? "Tab's running — keg, kitchen and the band are all yours. Skål!" : "Welcome to Ölbacken! Open a tab — hand me a card and the night's yours."),
+        give: { card: (G) => openTab(G) },
+      },
+      {
         id: "keg", name: "the keg", x: 40, y: 78, w: 48, h: 44,
         walkTo: { x: 72, y: 120 }, defaultVerb: "use",
         look: (G) => G.flag("kegTapped") ? "A gloriously dented keg." : "A full keg. We actually got a whole keg.",
@@ -306,7 +368,7 @@ export const rooms = {
         walkTo: { x: 474, y: 120 }, defaultVerb: "talk",
         look: (G) => G.flag("musicOn") ? "The band's tearing through a set. The room's alive." : "A live band, set up but idle. They eye the bar.",
         talk: (G) => G.flag("musicOn") ? G.say("band", "Tack Linköping! This one's for the bank robbers!") : G.say("band", "Buy us a beer and we'll play all night."),
-        give: { beer: (G) => { if (G.flag("musicOn")) return "They've already got drinks."; G.setFlag("musicOn"); G.removeItem("beer"); sfx("win"); G.say("band", "TACK! Linköping, are you ready?!"); return "I hand a beer to the guitarist — the set kicks off!"; } },
+        give: { beer: (G) => { if (G.flag("musicOn")) return "They've already got drinks."; G.setFlag("musicOn"); G.removeItem("beer"); sfx("band"); G.say("band", "TACK! Linköping, are you ready?!"); return "I hand a beer to the guitarist — the set kicks off!"; } },
         useWith: { beer: (G) => { if (G.flag("musicOn")) return "They're sorted."; G.setFlag("musicOn"); G.removeItem("beer"); sfx("win"); return "Beer delivered — the band launches into it!"; } },
       },
       {
@@ -383,8 +445,8 @@ function escapeHeist(G) {
   G.vaultClock = Math.round(G.escapeLeft());   // freeze the escape clock for the ending
   G.setFlag("escaped");
   G.cutscene([
-    { sfx: "unlock" },
-    { say: ["player", "Loot bagged, alarm dead, power held — the vault swings open. Out with time to spare!"] },
+    { sfx: "rumble" },
+    { say: ["player", "Loot bagged, alarm dead, power held — the vault grinds open. Out with time to spare!"] },
     { wait: 500 }, { room: "pub" },
   ]);
 }
