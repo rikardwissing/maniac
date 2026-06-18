@@ -15,6 +15,7 @@ const ff = async ()=>{ await page.evaluate(async()=>{const G=window.__MM;for(let
 const card = async (n)=>{ await page.evaluate(async()=>{const G=window.__MM;for(let i=0;i<50;i++){if(G.card)break;G.speech.length=0;G.current=null;await new Promise(r=>setTimeout(r,40));}}); await page.waitForTimeout(350); await shot(n); };
 const place = (x)=>run(`G.player.x=${x}; G.player.target=null; G.camX=Math.max(0,Math.min((G.rooms[G.state.room].width||320)-320, ${x}-160));`);
 const finishBike = async ()=>{ await page.evaluate(()=>{ if(window.__MM.bike) window.__MM.bike.dist=window.__MM.bike.total+5; }); await page.waitForTimeout(200); await ff(); };
+const dialogPick = async (re)=>{ await ff(); await page.waitForTimeout(150); await page.evaluate((r)=>{const G=window.__MM; const o=G.choices&&G.choices.list.find(x=>new RegExp(r,'i').test(x.text)); if(o)o.fn(G);}, re); };
 
 await page.waitForTimeout(400); await shot("01-title");
 await page.click("#startBtn"); await page.waitForTimeout(300);
@@ -34,7 +35,7 @@ await run("O('door').open(G)"); await ff(); await page.waitForTimeout(150); awai
 await place(200); await shot("04-street");
 await run("O('helmet').pickup(G)"); await run("O('kiosk').use(G)");
 await run("O('cathedral').use(G)"); await ff(); await run("O('scope').use(G)"); await page.waitForTimeout(200); await shot("04b-cathedral"); await run("O('back').use(G)"); await ff();
-await run("O('board').look(G)"); await run("O('host').talk(G)"); await run("G.choices.list[0].fn(G)");
+await run("O('board').look(G)"); await run("O('host').talk(G)"); await dialogPick("Teamtailor"); await ff();
 // BIKE MINI-GAME
 await run("O('bikes').use(G)"); await page.waitForTimeout(700); await shot("05-bike");
 await finishBike();
@@ -59,7 +60,7 @@ await run("O('vault').open(G)"); await ff(); await page.waitForTimeout(300); awa
 // CONTROL + ROOF
 await place(300); await shot("08b-control");
 await run("G.switchTo('per')"); await run("O('lasers').use(G)"); await run("O('lever').use(G)"); await run("O('prototype').pickup(G)"); await run("O('evidence').pickup(G)");
-await run("O('curator').talk(G)"); await ff(); await run("O('stairs').use(G)"); await ff(); await page.waitForTimeout(200); await ff();
+await run("O('curator').talk(G)"); await dialogPick("over"); await ff(); await run("O('stairs').use(G)"); await ff(); await page.waitForTimeout(200); await ff();
 await shot("09-roof");
 await run("O('drone').use(G)"); await page.waitForTimeout(150); await run("O('master').pickup(G)"); await ff(); await page.waitForTimeout(400); await ff();
 

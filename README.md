@@ -37,7 +37,12 @@ Open `index.html` in any modern browser, or play the deployed build.
   sensible default.
 - **Switch teammate:** press **1–3**, **Tab**, click a face up top, or click
   a teammate in the scene. The camera follows whoever you control.
-- **H** = Oskar's hint · **F** = fullscreen · **M** = mute.
+- **Talk to anyone.** Every NPC has a proper **branching dialogue tree** —
+  pick a topic (click it or press its number), they answer, the menu loops
+  until you bow out. Use the **Talk to** verb on one of *your own* squadmates
+  to chat with them too: they'll give you a **contextual hint**, recap the
+  objective, banter — or hand you the controls ("Take over — you lead").
+- **H** = Oskar's quick hint · **F** = fullscreen · **M** = mute.
 
 ## The scheme & the objective
 
@@ -49,13 +54,19 @@ his **Control Room**, expose him, recover the data, stop him on the
 
 ## A connected world (not a corridor)
 
-The **street is a hub** — walk between the **Office**, a **Cloetta kiosk**, the
-**Cathedral square**, **Ölbacken**, and **The Vault** (which leads down to the
-Control Room and up to the Rooftop). You'll **backtrack**: when the bank
-**guard** blocks the alarm, you leave the Vault, buy a **Cloetta bar** at the
-street kiosk, and come back. Old-school **NPCs** to talk to — a Game-Master
-**host**, a **busker**, the **guard**, a **bartender**, and **The Curator** —
-several gate puzzles.
+**Walk anywhere inside an area; bike between areas.** Downtown is one walkable
+street — stroll between the **Office**, the **Cloetta kiosk**, the **Cathedral
+square**, **Ölbacken** and the host's **booking booth**. **The Vault** is
+across town, so you **bike** there (and home again at the end) — the only
+travel that needs the saddle. Inside the Vault, stairs connect the heist room,
+the Control Room and the Rooftop on foot.
+
+You'll **backtrack**: when the bank **guard** blocks the alarm, you ride back
+to the street, grab a **Cloetta bar** at the kiosk, and return. Old-school
+**NPCs** to talk to — a Game-Master **host**, a **busker**, the **kiosk
+vendor**, the **guard**, a **bartender**, the **band**, the reunited **crew**
+and **The Curator** — each with a branching conversation, several gating
+puzzles.
 
 ### How to win (spoilers)
 1. **Office** — cabinet key from the plant → open the cabinet → keycard +
