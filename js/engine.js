@@ -553,33 +553,32 @@ function clickRoom(x, y) {
   if (G.choices) return;
 
   if (obj) {
-    // determine verb to apply
-    let verb = G.verb === "walkto" ? (obj.defaultVerb || "look") : G.verb;
+    const verb = G.verb === "walkto" ? (obj.defaultVerb || "look") : G.verb;
     const target = targetFromObject(obj);
+    const wt = obj.walkTo || { x: clampX(obj.x + obj.w / 2), y: G.player.y };
 
-    if (TWO_OBJECT[verb] && !G.primary) {
-      // first object of a two-object command
-      G.primary = target;
-      sfx("verb");
+    // Completing a two-object command — the held item was picked from inventory.
+    if (TWO_OBJECT[verb] && G.primary && G.primary.id !== obj.id) {
+      const a = G.primary;
+      walkPlayer(wt.x, wt.y, () => {
+        faceToward(G.player, obj.x + obj.w / 2);
+        G.primary = null; execTwo(verb, a, target); G.verb = "walkto";
+      });
       return;
     }
-    // walk to the object then act
-    const wt = obj.walkTo || { x: clampX(obj.x + obj.w / 2), y: G.player.y };
+    // "Give" needs something to give first; clicking the recipient alone prompts.
+    if (verb === "give" && !G.primary) {
+      sfx("error"); G.say("player", "I should pick something to give first."); G.verb = "walkto"; return;
+    }
+    // Every other verb (Use included) acts directly on this one object.
     walkPlayer(wt.x, wt.y, () => {
       faceToward(G.player, obj.x + obj.w / 2);
-      if (TWO_OBJECT[verb] && G.primary) {
-        const a = G.primary; const b = target; G.primary = null;
-        execTwo(verb, a, b);
-        G.verb = "walkto";
-      } else {
-        exec(verb, target, null);
-        G.verb = "walkto";
-      }
+      exec(verb, target, null); G.verb = "walkto";
     });
     return;
   }
 
-  // empty floor -> walk
+  // empty floor -> walk (and cancel any pending combine)
   if (G.primary) { G.primary = null; G.verb = "walkto"; }
   walkPlayer(x, y, null);
 }
@@ -591,12 +590,13 @@ function clickInventory(x, y) {
   const item = invAt(x, y);
   if (!item) return;
   const target = { id: item, name: G.items[item].name, obj: G.items[item] };
-  let verb = G.verb === "walkto" ? (G.items[item].defaultVerb || "look") : G.verb;
+  const verb = G.verb === "walkto" ? (G.items[item].defaultVerb || "look") : G.verb;
 
-  if (TWO_OBJECT[verb] && !G.primary) { G.primary = target; sfx("verb"); return; }
   if (TWO_OBJECT[verb] && G.primary) {
+    if (G.primary.id === item) { G.primary = null; G.verb = "walkto"; sfx("verb"); return; } // re-click = deselect
     const a = G.primary; G.primary = null; execTwo(verb, a, target); G.verb = "walkto"; return;
   }
+  if (TWO_OBJECT[verb]) { G.primary = target; sfx("verb"); return; }   // begin "Use/Give this with…"
   exec(verb, target, null); G.verb = "walkto";
 }
 
@@ -636,6 +636,8 @@ function exec(verbId, target, second) {
     const r = handler(G, second);
     if (typeof r === "string") G.say("player", r);
     else if (Array.isArray(r)) G.sayLines("player", r);
+  } else if (verbId === "use" && target.obj.useWith) {
+    G.say("player", "I'll need to use something with the " + target.name + ".");
   } else {
     G.say("player", DEFAULTS[verbId] || "Hm.");
   }
@@ -955,13 +957,16 @@ function updateHover() {
   if (G.scene !== "play") { G.hover = null; return; }
   const { x, y } = G.mouse;
   if (y < ROOM_H) {
+    // a squadmate under the cursor — switch to them (or talk, with the verb)
+    const who = partyAt(x + G.camX, y);
+    if (who >= 0 && who !== G.activeIndex) { G.hover = { name: G.party[who].name, verb: G.verb === "talk" ? "talk" : "switchto" }; return; }
     const o = objectAt(x + G.camX, y);
-    G.hover = o ? { name: objName(o) } : null;
+    G.hover = o ? { name: objName(o), verb: o.defaultVerb || "look" } : null;
   } else {
     const v = verbAt(x, y);
-    if (v) { G.hover = { name: v.label }; return; }
+    if (v) { G.hover = { name: v.label, isVerb: true }; return; }
     const it = invAt(x, y);
-    G.hover = it ? { name: G.items[it].name } : null;
+    G.hover = it ? { name: G.items[it].name, verb: G.items[it].defaultVerb || "look" } : null;
   }
 }
 
@@ -1124,13 +1129,16 @@ function drawPanel(ctx) {
   ctx.fillStyle = "#06212c";
   ctx.fillRect(0, PANEL_Y - 1, SCREEN_W, 1);
 
-  // sentence line
-  let sentence = verbLabel(G.verb);
+  // sentence line — with no verb chosen, preview the hovered thing's default action
+  const hoverThing = G.hover && !G.hover.isVerb;
+  let activeVerb = G.verb;
+  if (G.verb === "walkto" && hoverThing && G.hover.verb && !G.primary) activeVerb = G.hover.verb;
+  let sentence = verbLabel(activeVerb);
   if (G.primary) {
     const conn = TWO_OBJECT[G.verb] || "";
     sentence += " " + G.primary.name + (conn ? " " + conn : "");
-    if (G.hover) sentence += " " + G.hover.name;
-  } else if (G.hover) {
+    if (hoverThing) sentence += " " + G.hover.name;
+  } else if (hoverThing) {
     sentence += " " + G.hover.name;
   }
   text(ctx, sentence, 6, PANEL_Y + 1, "#34d0b4");
@@ -1160,6 +1168,7 @@ function drawPanel(ctx) {
 
 function verbLabel(id) {
   if (id === "walkto") return "Walk to";
+  if (id === "switchto") return "Switch to";
   return (VERBS.find((v) => v.id === id) || { label: "Walk to" }).label;
 }
 function pointIn(p, x, y, w, h) { return p.x >= x && p.x < x + w && p.y >= y && p.y < y + h; }

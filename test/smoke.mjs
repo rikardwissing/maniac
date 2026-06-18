@@ -69,6 +69,14 @@ try {
   let s = await state(); console.log("start:", JSON.stringify(s));
   must(s.room === "office", "expected office, got " + s.room);
 
+  // ---- interaction polish: "Use" acts on ONE object (no forced combine) ----
+  await run("G.verb='use'");
+  await page.mouse.click(rect.l + (118 / 320) * rect.w, rect.t + (70 / 200) * rect.h);  // the coffee machine
+  await page.waitForTimeout(1500);
+  must(!(await page.evaluate(() => !!window.__MM.primary)), "'Use' on an object wrongly waited for a second object");
+  must(await page.evaluate(() => !!window.__MM.current || window.__MM.speech.length > 0), "'Use' on the machine produced no response");
+  await ff();
+
   // ---- OFFICE: brew a fika for Robin -> keycard; plant->cabinet->card ----
   await run("O('mug').pickup(G)");
   await run("O('machine').useWith.mug(G)");        // -> coffee
