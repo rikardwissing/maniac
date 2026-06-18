@@ -3,7 +3,7 @@
 // between them. Every scene is a puzzle. Office -> street -> bank-heist
 // escape room -> Ölbacken (the big one) -> home.
 import {
-  paintOffice, paintStreet, paintHeist, paintPub,
+  paintOffice, paintStreet, paintHeist, paintPub, paintBikeCard,
   OFFICE_W, STREET_W, HEIST_W, PUB_W,
 } from "./art.js";
 import { sfx } from "./audio.js";
@@ -40,6 +40,7 @@ export const rooms = {
         ]);
       }
     },
+    barks: ["Friday at last.", "Did anyone actually book the room?", "Leave the laptops — it's AW.", ["oskar", "Press H if you ever get stuck. That's me."]],
     hint: (G) => {
       if (!G.has("cabkey") && !G.flag("cabinetOpen")) return "Search the plant pot (right) — something glints in the soil.";
       if (!G.flag("cabinetOpen")) return "Use the cabinet key on the locked supply cabinet (left).";
@@ -97,6 +98,7 @@ export const rooms = {
       if (!G.flag("streetIntro")) { G.setFlag("streetIntro"); G.cutscene([{ say: ["player", "Downtown. 'The Vault' escape rooms are at the far end — but the door's on a code."] }]); }
     },
     hint: (G) => !G.flag("knowPin") ? "Read the noticeboard (middle of the street) for tonight's door code." : "Use the buzzer at The Vault's entrance (far right).",
+    barks: ["Smells like Friday.", "Race you to the door.", "Sun's still up — good omen."],
     objects: [
       {
         id: "board", name: "noticeboard", x: 356, y: 48, w: 50, h: 34,
@@ -126,7 +128,9 @@ export const rooms = {
     walk: { minX: 16, maxX: 620, minY: 106, maxY: 132, scaleMin: 1.15, scaleMax: 1.7 },
     // co-op: the vault is powered only while someone stands on the plate (x 496..546)
     tick: (G) => G.setFlag("plateHeld", G.partyOnArea(496, 546)),
+    barks: ["Colder than our staging env in here.", "Anyone else hear ticking?", "Ninety minutes. We've got this.", ["oskar", "Stuck? Press H — that's literally my job."]],
     onEnter: (G) => {
+      if (G.heistStart == null) G.heistStart = G.t;   // start the 90-min escape clock
       if (!G.flag("heistIntro")) {
         G.cutscene([
           { say: ["player", "Scenario: bank robbers. Find the loot, kill the alarm, power the vault — get out."] },
@@ -266,6 +270,17 @@ export const rooms = {
       if (!G.flag("ateFood")) return "Grab the food off the table.";
       return "Talk to the crew, then head out the door (far right) to bike home.";
     },
+    barks: [
+      ["per", "That laser grid never stood a chance."],
+      ["caroline", "I'm expensing this round. Tell the books, not me."],
+      ["emil", "New personal best in there. Just saying."],
+      ["jonas", "Platform carried the vault door. You're welcome."],
+      ["anders", "'Cranked valiantly.' Going in my review."],
+      ["rikard", "Filmed the whole heist. Mostly the ceiling."],
+      ["oskar", "Need a hint for the menu? ...kidding. Mostly."],
+      "Skål! To the Linköping crew!",
+      "Best AW this quarter, easily.",
+    ],
     objects: [
       {
         id: "tab", name: "the tab board", x: 168, y: 54, w: 28, h: 18,
@@ -359,11 +374,13 @@ function leaveOffice(G) {
 }
 function enterVenue(G) {
   G.cutscene([
-    { say: ["player", "Code works. Ninety minutes on the clock — let's rob a bank."] },
-    { wait: 400 }, { room: "heist" },
+    { say: ["player", "Code works. We grabbed the bikes and rolled downtown."] },
+    { card: { draw: (ctx, t) => paintBikeCard(ctx, t, false), lines: ["Through town to The Vault —", "ninety minutes on the clock."], wait: 3200 } },
+    { wait: 200 }, { room: "heist" },
   ]);
 }
 function escapeHeist(G) {
+  G.vaultClock = Math.round(G.escapeLeft());   // freeze the escape clock for the ending
   G.setFlag("escaped");
   G.cutscene([
     { sfx: "unlock" },
@@ -374,14 +391,15 @@ function escapeHeist(G) {
 function goHome(G) {
   G.cutscene([
     { say: ["player", "Keg defeated, band still playing, everyone happy. Skål — and good natt!"] },
-    { wait: 500 },
+    { card: { draw: (ctx, t) => paintBikeCard(ctx, t, true), lines: ["We biked home through the", "Linköping night."], wait: 3200 } },
+    { wait: 200 },
     { do: (g) => g.win({
       title: "GOD NATT, LINKÖPING",
       lines: [
-        "We cracked the vault and bagged the loot,",
-        "tapped a keg, caught the live band, ate well —",
-        "good company at Ölbacken till closing.",
-        "Then we biked home through the night.",
+        "Vault cracked. Loot bagged.",
+        "Keg, live band, food, good company",
+        "at Ölbacken till closing.",
+        "Then we biked home.",
       ],
       replay: true,
     }) },

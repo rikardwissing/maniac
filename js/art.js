@@ -546,6 +546,47 @@ export function paintPub(ctx, t, st) {
   textTiny(ctx, 522, 32, "HOME", "#e8902f");
 }
 
+// Full-screen cutscene card: the crew biking across Linköping (day or night).
+export function paintBikeCard(ctx, t, night) {
+  vGradient(ctx, 0, 0, ROOM_W, 96, night ? "#0c1430" : "#f3b87e", night ? "#202a4a" : "#f8dcae", 10);
+  rect(ctx, night ? 44 : 64, 16, 10, 10, night ? "#e8e8d0" : "#fff0c0"); // moon / sun
+  if (night) for (let i = 0; i < 40; i++) px(ctx, (i * 97) % ROOM_W, (i * 53) % 60, "#2a3550");
+  // scrolling skyline
+  const sc = (t * 60) | 0;
+  for (let i = 0; i < 10; i++) {
+    let x = ((i * 70 - sc) % 700 + 700) % 700 - 60; const h = 18 + (i % 3) * 10;
+    rect(ctx, x, 96 - h, 52, h, night ? "#0e1830" : "#6a5a82");
+    for (let w = 4; w < 48; w += 10) rect(ctx, x + w, 96 - h + 4, 5, 5, night ? "#1a2a44" : "#caa6c0");
+  }
+  // cathedral spire sweeping past
+  let cx = ((360 - sc * 1.2) % 760 + 760) % 760 - 80;
+  rect(ctx, cx, 50, 18, 46, night ? "#1a2440" : "#b9967c"); rect(ctx, cx + 6, 30, 6, 66, night ? "#101a30" : "#a8836a");
+  for (let i = 0; i < 6; i++) px(ctx, cx + 8, 24 + i, night ? "#0c1426" : "#94735e");
+  // road + speed dashes
+  vGradient(ctx, 0, 116, ROOM_W, ROOM_H - 116, night ? "#1a1f2c" : "#5c6068", night ? "#0c1018" : "#43464d", 6);
+  rect(ctx, 0, 116, ROOM_W, 2, night ? "#2a3550" : "#b6bcc4");
+  const dof = (t * 220) | 0;
+  for (let x = -(dof % 44); x < ROOM_W; x += 44) rect(ctx, x, 130, 22, 2, night ? "#3a4560" : "#9aa0a8");
+  // three cyclists, pedalling
+  const cols = ["#00a98f", "#e87fb0", "#33405e"];
+  for (let i = 0; i < 3; i++) cyclist(ctx, 96 + i * 64, 120, cols[i], t + i * 0.6, night);
+}
+function cyclist(ctx, x, y, col, t, night) {
+  const spoke = night ? "#cfd6e0" : "#15151b";
+  for (const wx of [x - 7, x + 7]) {
+    ctx.strokeStyle = spoke; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.arc(wx, y, 5, 0, Math.PI * 2); ctx.stroke();
+    const a = t * 12; ctx.beginPath(); ctx.moveTo(wx + Math.cos(a) * 5, y + Math.sin(a) * 5); ctx.lineTo(wx - Math.cos(a) * 5, y - Math.sin(a) * 5); ctx.stroke();
+  }
+  ctx.strokeStyle = col; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(x - 7, y); ctx.lineTo(x, y); ctx.lineTo(x + 7, y); ctx.moveTo(x, y); ctx.lineTo(x + 2, y - 8); ctx.stroke();
+  rect(ctx, x - 10, y - 9, 6, 2, "#3a3a44");
+  const bob = Math.round(Math.sin(t * 12));
+  rect(ctx, x - 2, y - 16 + bob, 6, 9, col);
+  rect(ctx, x - 1, y - 22 + bob, 5, 6, "#e8b890");
+  rect(ctx, x - 1, y - 24 + bob, 5, 3, night ? "#222831" : "#3a2414");
+}
+
 /* ---------------------------- prop helpers ----------------------------- */
 function drawSign(ctx, x, y, txt) {
   const w = txt.length * 7 + 10;

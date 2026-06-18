@@ -11,7 +11,7 @@ await page.goto(`http://localhost:${PORT}/`);
 await page.waitForFunction(()=>window.__MM&&window.__MM.fontReady,null,{timeout:8000});
 const shot = async (name)=>{ await page.waitForTimeout(250); const el=await page.$("#bezel"); await el.screenshot({path:`shots/${name}.png`}); console.log("shot",name); };
 const run = (e)=>page.evaluate((x)=>{const G=window.__MM;const O=(id)=>G.rooms[G.state.room].objects.find(o=>o.id===id);return eval(x);},e);
-const ff = async ()=>{ await page.evaluate(async()=>{const G=window.__MM;for(let i=0;i<80;i++){G.speech.length=0;G.current=null;if(!G.cs&&G.fadeDir===0)break;await new Promise(r=>setTimeout(r,50));}}); await page.waitForTimeout(150); };
+const ff = async ()=>{ await page.evaluate(async()=>{const G=window.__MM;for(let i=0;i<80;i++){G.speech.length=0;G.current=null;if(G.card)G.card.until=0;if(!G.cs&&G.fadeDir===0&&!G.card)break;await new Promise(r=>setTimeout(r,50));}}); await page.waitForTimeout(150); };
 const place = (x)=>run(`G.player.x=${x}; G.player.target=null; G.camX=Math.max(0,Math.min((G.rooms[G.state.room].width||320)-320, ${x}-160));`);
 
 await page.waitForTimeout(400); await shot("01-title");
@@ -27,7 +27,11 @@ await run("O('plant').pickup(G)"); await run("O('cabinet').open(G)"); await run(
 await run("O('door').open(G)"); await ff(); await page.waitForTimeout(200); await ff();
 await place(380); await shot("04-street");
 await run("O('board').look(G)"); await page.waitForTimeout(200); await shot("05-street-board");
-await run("O('venue').use(G)"); await ff(); await page.waitForTimeout(200); await ff();
+await run("O('venue').use(G)");
+// reach + capture the bike-ride card
+await page.evaluate(async()=>{const G=window.__MM;for(let i=0;i<40;i++){if(G.card)break;G.speech.length=0;G.current=null;await new Promise(r=>setTimeout(r,50));}});
+await page.waitForTimeout(400); await shot("05b-bikecard");
+await ff(); await page.waitForTimeout(200); await ff();
 
 // HEIST — Rikard uses phone UV (in squad), show left then steps then co-op
 await run("G.switchTo('rikard')"); await place(70); await page.waitForTimeout(150);

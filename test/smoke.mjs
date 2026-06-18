@@ -52,7 +52,8 @@ const ff = async () => {
     const G = window.__MM;
     for (let i = 0; i < 80; i++) {
       G.speech.length = 0; G.current = null;
-      if (!G.cs && G.fadeDir === 0) break;
+      if (G.card) G.card.until = 0;          // skip cutscene cards
+      if (!G.cs && G.fadeDir === 0 && !G.card) break;
       await new Promise((r) => setTimeout(r, 50));
     }
   });
