@@ -176,6 +176,10 @@ function enterRoom(id, opts) {
   G.camX = Math.max(0, Math.min(w - ROOM_W, (G.player ? G.player.x : 160) - ROOM_W / 2));
   G.verb = "walkto"; G.primary = null;
   if (room.music) playMusic(room.music);
+  if (room.objective) {
+    G.objective = typeof room.objective === "function" ? room.objective(G) : room.objective;
+    G.hintMsg = { text: "OBJECTIVE: " + G.objective, until: G.t + 5.5 };
+  }
   if (room.onEnter) room.onEnter(G, opts);
 }
 
@@ -274,6 +278,7 @@ function onKey(e) {
   if (e.key >= "1" && e.key <= "9") { const i = +e.key - 1; if (i < G.party.length) G.switchTo(i); }
   else if (e.key === "Tab") { e.preventDefault(); G.switchTo((G.activeIndex + 1) % G.party.length); }
   else if (e.key.toLowerCase() === "h") askHint();
+  else if (e.key.toLowerCase() === "j" && G.objective) G.hintMsg = { text: "OBJECTIVE: " + G.objective, until: G.t + 5 };
 }
 
 // portrait bar geometry (screen space, top-left)

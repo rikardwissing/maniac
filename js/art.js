@@ -161,6 +161,7 @@ export const SKINS = {
   guard:    { h: "#2a2a30", H: "#141418", t: "#26406a", T: "#172a4a" },  // bank guard, navy
   bartend:  { h: "#3a2a18", H: "#241409", t: "#1f6a5a", T: "#124a3e" },  // bartender, teal
   busker:   { h: "#6a4326", H: "#3c2615", t: "#7a5a8f", T: "#4d2259" },  // street busker
+  curator:  { h: "#d8c4b0", H: "#b89a82", s: "#ecd6c2", S: "#c4ac96", t: "#26262f", T: "#141419", j: "#1a1a20", J: "#0c0c10" }, // the villain: pale, balding, black coat
 };
 
 // id, name, role, skin key, blurb, long-hair flag.
@@ -256,7 +257,29 @@ export const ICONS = {
     "   rWEEEEEEWr   ","   rWWWWWWWWr   ","   rrrrrrrrrr   ","                ",
     "                ","                ","                ","                ",
   ],
+  drive: [     // the prototype / master data drive (glowing USB)
+    "                ","                ","      cccc      ","     ciiiic     ",
+    "     ciiiic     ","     ciiiic     ","     cccccccc   ","    cGGGGGGc    ",
+    "    cGkkkkGc    ","    cGGGGGGc    ","    cccccccc    ","     qqqqqq     ",
+    "                ","                ","                ","                ",
+  ],
+  folder: [    // evidence folder
+    "                ","                ","   eeeeee       ","   eeeeeeeeee   ",
+    "   exxxxxxxxe   ","   exrrrrrrxe   ","   exxxxxxxxe   ","   exkkkkkkxe   ",
+    "   exxxxxxxxe   ","   exkkkkxxxe   ","   exxxxxxxxe   ","   eeeeeeeeee   ",
+    "       rr       ","       rr       ","                ","                ",
+  ],
+  mirror: [    // a hand mirror (laser fallback)
+    "                ","     qqqq       ","    qllllq      ","   qlwlllqq     ",
+    "   qlllwllq     ","   qllllllq     ","   qllllllq     ","    qllllq      ",
+    "     qqqq        ","      qq        ","      qq        ","      qq        ",
+    "     qqqq       ","                ","                ","                ",
+  ],
 };
+// inventory icon aliases (same art, distinct item ids)
+ICONS.prototype = ICONS.drive;
+ICONS.master = ICONS.drive;
+ICONS.evidence = ICONS.folder;
 
 export function actorShadow(ctx, cx, cy, w, scale) {
   ctx.fillStyle = "rgba(0,0,0,0.28)";
@@ -279,6 +302,8 @@ export function drawAccessory(ctx, type, x, y, sc) {
     C(4, 12, 8, 9, "#d8d2c0"); C(5, 12, 6, 1, "#b8b2a0"); C(7, 12, 2, 2, "#9a948a");
   } else if (type === "bowtie") {  // host's bow tie
     C(6, 11, 4, 2, "#c9a82f"); C(7, 11, 2, 2, "#7a1f2b");
+  } else if (type === "goggles") { // the Curator's red goggles
+    C(2, 4, 12, 2, "#16161c"); C(4, 4, 3, 2, "#d23b2b"); C(9, 4, 3, 2, "#d23b2b");
   }
 }
 
@@ -361,55 +386,78 @@ export function paintOffice(ctx, t, st) {
   if (!st.flags.tookCabKey) { px(ctx, 126, 114, "#f2d04a"); px(ctx, 127, 114, "#fff4c0"); px(ctx, 128, 115, "#f2d04a"); }
 }
 
-// 2 — STREET to the venue. width 640. Bank/escape-room entrance at far right.
-export const STREET_W = 640;
+// 2 — THE STREET: the connected hub. width 760. Doors to everywhere.
+export const STREET_W = 760;
 export function paintStreet(ctx, t, st) {
-  vGradient(ctx, 0, 0, STREET_W, 64, "#f0b27a", "#f6d9a8", 10); // late-afternoon sky
-  rect(ctx, 70, 10, 9, 9, "#fff0c0"); // low sun
-  cloud(ctx, 160, 14); cloud(ctx, 360, 8); cloud(ctx, 520, 20);
-  // distant cathedral
-  rect(ctx, 250, 28, 22, 32, "#caa98f"); rect(ctx, 258, 12, 6, 48, "#b9967c");
-  for (let i = 0; i < 8; i++) px(ctx, 260, 4 + i, "#a8836a");
-  // building facades
-  const cols = ["#3a6f64", "#7a5a8f", "#8f5a3a", "#5a6f8f"];
-  for (let i = 0; i < 5; i++) {
-    const bx = i * 110, c = cols[i % cols.length];
-    rect(ctx, bx, 36, 108, 44, c);
-    rect(ctx, bx, 34, 108, 4, mix(c, "#000", 0.3));
-    for (let w = 8; w < 100; w += 24) { rect(ctx, bx + w, 44, 16, 14, "#cfe8f4"); rect(ctx, bx + w, 44, 16, 4, "#a9c8d8"); }
-  }
-  drawSign(ctx, 18, 22, "teamtailor");
-
-  // pavement + cobbled road
-  vGradient(ctx, 0, 80, STREET_W, 16, "#9aa0a8", "#7c828a", 6);
-  rect(ctx, 0, 80, STREET_W, 2, "#b6bcc4");
+  vGradient(ctx, 0, 0, STREET_W, 64, "#f0b27a", "#f6d9a8", 10);
+  rect(ctx, 60, 10, 9, 9, "#fff0c0"); cloud(ctx, 150, 14); cloud(ctx, 380, 8); cloud(ctx, 600, 18);
+  // distant cathedral spire over the square
+  rect(ctx, 372, 22, 22, 38, "#caa98f"); rect(ctx, 380, 6, 6, 54, "#b9967c"); for (let i = 0; i < 8; i++) px(ctx, 382, -2 + i, "#a8836a");
+  // continuous facade
+  vGradient(ctx, 0, 34, STREET_W, 46, "#3a4150", "#2a313e", 8); rect(ctx, 0, 32, STREET_W, 3, "#222833");
+  drawSign(ctx, 14, 16, "teamtailor");
+  // doors / places along the street
+  doorway(ctx, 36, "OFFICE", "#00a98f");
+  kiosk(ctx, 176);
+  doorway(ctx, 360, "CATHEDRAL", "#c9a82f");
+  doorway(ctx, 500, "OLBACKEN", "#e8902f");
+  board(ctx, 590, st);
+  vaultFront(ctx, 660, st);
+  // pavement + road
+  vGradient(ctx, 0, 80, STREET_W, 16, "#9aa0a8", "#7c828a", 6); rect(ctx, 0, 80, STREET_W, 2, "#b6bcc4");
   vGradient(ctx, 0, 96, STREET_W, ROOM_H - 96, "#5c6068", "#43464d", 8);
   speckle(ctx, 0, 96, STREET_W, ROOM_H - 96, "#33363c", 0.05, 7);
   for (let y = 100; y < ROOM_H; y += 8) for (let x = (y % 16); x < STREET_W; x += 16) rect(ctx, x, y, 7, 6, "#4d5158");
+  for (let i = 0; i < 3; i++) bike(ctx, 286 + i * 24, 96, i === 1);
+}
+function doorway(ctx, x, label, color) {
+  rect(ctx, x, 44, 32, 36, "#1a1f28"); frame(ctx, x, 44, 32, 36, "#11151c");
+  rect(ctx, x + 4, 48, 24, 32, "#0c0f16");
+  rect(ctx, x - 1, 37, 34, 7, color); textTiny(ctx, x + 2, 38, label, "#0a0a12");
+  rect(ctx, x + 23, 62, 3, 8, "#c9a06a");
+}
+function kiosk(ctx, x) {
+  for (let i = 0; i < 6; i++) rect(ctx, x + i * 8, 44, 8, 7, i % 2 ? "#d23b2b" : "#f6f6fb");
+  rect(ctx, x, 51, 46, 29, "#7a4d24"); frame(ctx, x, 51, 46, 29, "#9a6233");
+  rect(ctx, x + 4, 66, 38, 14, "#3a2410");
+  rect(ctx, x + 5, 57, 36, 7, "#15151d"); textTiny(ctx, x + 8, 59, "CLOETTA", "#f2d04a");
+  sprite(ctx, ICONS.choklad, x + 15, 64, { scale: 0.7 });
+}
+function vaultFront(ctx, x, st) {
+  rect(ctx, x, 34, 90, 46, "#2a2f3a"); rect(ctx, x, 32, 90, 3, "#1a1f28");
+  rect(ctx, x + 28, 42, 34, 34, "#3a4150");
+  ctx.strokeStyle = "#6a7180"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x + 45, 59, 11, 0, Math.PI * 2); ctx.stroke(); ctx.lineWidth = 1;
+  rect(ctx, x + 12, 62, 66, 18, "#15151d"); textTiny(ctx, x + 16, 68, "THE VAULT . ESCAPE", "#f2d04a");
+  rect(ctx, x + 40, 80, 16, 16, "#0a0c12");
+}
+function board(ctx, x, st) {
+  rect(ctx, x, 50, 46, 30, "#5f3c1d"); frame(ctx, x, 50, 46, 30, "#9a6233");
+  rect(ctx, x + 4, 54, 38, 22, "#e8e2d0");
+  for (let i = 0; i < 4; i++) rect(ctx, x + 7, 57 + i * 5, 26 - (i % 2) * 6, 1, "#2a2a30");
+  rect(ctx, x + 18, 44, 2, 8, "#6a6a72");
+}
 
-  // the ESCAPE ROOM venue at the far right — a vault-door logo
-  const vx = STREET_W - 92;
-  rect(ctx, vx, 30, 92, 50, "#2a2f3a");
-  rect(ctx, vx, 28, 92, 4, "#1a1f28");
-  rect(ctx, vx + 30, 40, 34, 34, "#3a4150");
-  ctx.strokeStyle = "#6a7180"; ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.arc(vx + 47, 57, 11, 0, Math.PI * 2); ctx.stroke(); ctx.lineWidth = 1;
-  rect(ctx, vx + 18, 60, 56, 20, "#15151d");
-  textTiny(ctx, vx + 22, 66, "THE VAULT . ESCAPE", "#f2d04a");
-  rect(ctx, vx + 40, 80, 16, 16, "#0a0c12"); // doorway
-  // buzzer keypad beside the door
-  rect(ctx, vx + 58, 80, 10, 14, "#15151d");
-  for (let r = 0; r < 3; r++) for (let c = 0; c < 2; c++) rect(ctx, vx + 60 + c * 4, 82 + r * 4, 3, 3, st.flags.venueOpen ? "#46b85c" : "#d23b2b");
-
-  // a noticeboard with tonight's bookings (read for the door code)
-  const nb = 360;
-  rect(ctx, nb, 50, 46, 30, "#5f3c1d"); frame(ctx, nb, 50, 46, 30, "#9a6233");
-  rect(ctx, nb + 4, 54, 38, 22, "#e8e2d0");
-  for (let i = 0; i < 4; i++) rect(ctx, nb + 7, 57 + i * 5, 26 - (i % 2) * 6, 1, "#2a2a30");
-  rect(ctx, nb + 18, 44, 2, 8, "#6a6a72"); // post
-
-  // a parked tram/bus + bike rack for flavour
-  for (let i = 0; i < 3; i++) bike(ctx, 150 + i * 26, 96, i === 1);
+// 2b — CATHEDRAL SQUARE (branch). width 360. Optional clue + flavour.
+export const CATH_W = 360;
+export function paintCathedral(ctx, t, st) {
+  vGradient(ctx, 0, 0, CATH_W, 70, "#f0b27a", "#f6d9a8", 10);
+  cloud(ctx, 60, 12); cloud(ctx, 250, 8);
+  // cathedral facade
+  rect(ctx, 70, 8, 220, 72, "#caa98f"); rect(ctx, 70, 6, 220, 4, "#b9967c");
+  rect(ctx, 172, -2, 18, 82, "#b9967c"); for (let i = 0; i < 12; i++) px(ctx, 180, -14 + i, "#a8836a");
+  // rose window
+  ctx.fillStyle = "#7a3b8f"; ctx.beginPath(); ctx.arc(181, 30, 10, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = "#c9a82f"; ctx.beginPath(); ctx.arc(181, 30, 4, 0, Math.PI * 2); ctx.fill();
+  // arched doors
+  for (const dx of [120, 220]) { rect(ctx, dx, 50, 22, 30, "#3a2a18"); rect(ctx, dx + 2, 46, 18, 8, "#5f3c1d"); }
+  // ground / square
+  vGradient(ctx, 0, 80, CATH_W, ROOM_H - 80, "#8a8f98", "#6a6f78", 6); rect(ctx, 0, 80, CATH_W, 2, "#a6acb4");
+  for (let x = 0; x < CATH_W; x += 18) rect(ctx, x, 96, 1, ROOM_H - 96, "#5a5f68");
+  // a coin telescope (clue/easter egg)
+  rect(ctx, 300, 86, 4, 18, "#3a4150"); rect(ctx, 292, 78, 22, 8, st.flags.usedScope ? "#46b85c" : "#2a3550"); rect(ctx, 312, 80, 6, 4, "#15151d");
+  rect(ctx, 296, 74, 4, 4, "#c9a82f");
+  // a bench
+  rect(ctx, 40, 100, 34, 3, "#5f3c1d"); rect(ctx, 44, 103, 3, 8, "#3a2410"); rect(ctx, 68, 103, 3, 8, "#3a2410");
 }
 
 // 3 — THE BANK-HEIST ESCAPE ROOM. width 640. Stations spread L->R, exit far right.
@@ -457,13 +505,9 @@ export function paintHeist(ctx, t, st) {
   else rect(ctx, 224, 96, 4, 2, "#c9a82f");
   sprite(ctx, ICONS.ledger, 214, 70, { scale: 0.9 });
 
-  // vending machine (Cloetta chocolate) between the desk and the safe
-  rect(ctx, 264, 52, 28, 48, "#9a2417"); frame(ctx, 264, 52, 28, 48, "#d23b2b");
-  rect(ctx, 267, 55, 16, 26, "#11141a");
-  for (let r = 0; r < 3; r++) for (let c = 0; c < 2; c++) rect(ctx, 269 + c * 7, 57 + r * 8, 5, 6, "#8a5a2b");
-  rect(ctx, 285, 57, 5, 12, "#2a2f3a"); for (let i = 0; i < 3; i++) rect(ctx, 286, 58 + i * 3, 3, 2, "#46b85c");
-  rect(ctx, 267, 84, 18, 5, "#15151d"); // dispenser tray
-  textTiny(ctx, 266, 92, "CLOETTA", "#f2d04a");
+  // way back out to the street (you can leave and return mid-game)
+  rect(ctx, 4, 40, 24, 56, "#0c1018"); frame(ctx, 4, 40, 24, 56, "#2a3550");
+  rect(ctx, 8, 44, 16, 48, "#1a2230"); textTiny(ctx, 6, 34, "OUT", "#9fe8ff");
 
   // --- Station 4: the SAFE / vault (x ~ 320) ---
   const sx = 300;
@@ -579,6 +623,92 @@ export function paintPub(ctx, t, st) {
   rect(ctx, 522, 76, 4, 8, "#c9a06a");
   textTiny(ctx, 522, 32, "HOME", "#e8902f");
 }
+
+// 5 — THE CONTROL ROOM (the Curator's lair behind the vault). width 600.
+export const CONTROL_W = 600;
+export function paintControl(ctx, t, st) {
+  vGradient(ctx, 0, 0, CONTROL_W, 100, "#10131c", "#070910", 12);
+  rect(ctx, 0, 96, CONTROL_W, 6, "#05070c");
+  vGradient(ctx, 0, 102, CONTROL_W, ROOM_H - 102, "#1a1f2a", "#10131b", 8);
+  for (let x = 0; x < CONTROL_W; x += 28) rect(ctx, x, 102, 1, ROOM_H - 102, "#0a0d14");
+  rect(ctx, 0, 102, CONTROL_W, 1, "#2a3550");
+
+  // wall of monitors — harvested companies
+  const cols = ["#2c8540", "#3f7fb0", "#d23b2b", "#c9a82f", "#7a3b8f", "#1f6a5a"];
+  for (let i = 0; i < 8; i++) {
+    const mx = 18 + i * 62, my = 10 + (i % 2) * 6;
+    rect(ctx, mx, my, 46, 26, "#0c0f16"); frame(ctx, mx, my, 46, 26, "#2a3550");
+    const fl = (Math.sin(t * 3 + i) * 0.5 + 0.5) > 0.5;
+    vGradient(ctx, mx + 2, my + 2, 42, 22, cols[i % cols.length], "#0c1018", 5);
+    for (let r = 0; r < 3; r++) rect(ctx, mx + 5, my + 5 + r * 5, 10 + (i * 7 + r * 5) % 26, 2, fl ? "#9fe8ff" : "#3a4658");
+  }
+  textTiny(ctx, 18, 40, "HARVESTED . CONFIDENTIAL", "#d23b2b");
+
+  // mirror on a shelf (laser fallback), far left
+  if (!st.flags.tookMirror) { rect(ctx, 36, 70, 18, 3, "#3a2f24"); sprite(ctx, ICONS.mirror, 36, 56, { scale: 0.7 }); }
+
+  // the Curator's desk + terminals + evidence folder
+  rect(ctx, 150, 80, 92, 6, "#2a2f3a"); rect(ctx, 158, 86, 6, 16, "#1a1f28"); rect(ctx, 228, 86, 6, 16, "#1a1f28");
+  rect(ctx, 160, 60, 28, 20, "#0c0f16"); vGradient(ctx, 162, 62, 24, 16, "#0e5e52", "#0a4a40", 5); rect(ctx, 165, 65, 14, 2, "#34d0b4");
+  rect(ctx, 198, 62, 30, 18, "#0c0f16"); vGradient(ctx, 200, 64, 26, 14, "#7a1f2b", "#4d1019", 5);
+  if (!st.flags.tookEvidence) sprite(ctx, ICONS.folder, 206, 64, { scale: 0.7 });
+
+  // laser tripwire guarding the lever + server
+  const lx = 300, lw = 116;
+  const beam = st.flags.lasersOff ? "#143a18" : "#3a1014", led = st.flags.lasersOff ? "#46b85c" : "#d23b2b";
+  rect(ctx, lx - 4, 34, 4, 56, beam); rect(ctx, lx + lw, 34, 4, 56, beam);
+  for (let i = 0; i < 3; i++) { rect(ctx, lx - 4, 40 + i * 18, 4, 3, led); rect(ctx, lx + lw, 40 + i * 18, 4, 3, led); }
+  if (!st.flags.lasersOff) for (let i = 0; i < 3; i++) { ctx.fillStyle = "rgba(210,59,43,0.8)"; ctx.fillRect(lx, 41 + i * 18, lw, 1); }
+
+  // power lever
+  rect(ctx, 424, 58, 10, 32, "#2a2f3a"); rect(ctx, 421, st.flags.powerCut ? 78 : 56, 16, 8, st.flags.powerCut ? "#46b85c" : "#d23b2b");
+  textTiny(ctx, 420, 92, "PWR", "#5a6678");
+
+  // server rack with the docked prototype
+  const sx = 446;
+  rect(ctx, sx, 28, 70, 74, "#15191f"); frame(ctx, sx, 28, 70, 74, "#2a3550");
+  for (let r = 0; r < 9; r++) { rect(ctx, sx + 4, 32 + r * 7, 62, 5, "#0c0f16"); const on = (Math.sin(t * 5 + r) * 0.5 + 0.5) > (st.flags.powerCut ? 1.1 : 0.4); rect(ctx, sx + 60, 33 + r * 7, 3, 3, on ? "#46b85c" : (st.flags.powerCut ? "#222831" : "#d23b2b")); }
+  if (!st.flags.tookPrototype) { rect(ctx, sx + 20, 84, 16, 10, st.flags.powerCut ? "#0c0f16" : "#0e5e52"); sprite(ctx, ICONS.drive, sx + 18, 80, { scale: 0.7 }); }
+  textTiny(ctx, sx + 8, 22, "PROJECT AURORA", "#34d0b4");
+
+  // way back down to the vault room (far left)
+  rect(ctx, 4, 44, 22, 52, "#0a0d14"); frame(ctx, 4, 44, 22, 52, "#2a3550"); textTiny(ctx, 4, 38, "VAULT", "#5a6678");
+
+  // stairs up to the roof (far right)
+  const ux = CONTROL_W - 44;
+  for (let i = 0; i < 5; i++) rect(ctx, ux + i * 7, 94 - i * 11, 42 - i * 7, 9, "#2a2f3a");
+  textTiny(ctx, ux + 4, 26, "ROOF", st.flags.curatorFled ? "#f2d04a" : "#3a4658");
+}
+
+// 6 — THE ROOFTOP (the getaway). width 480.
+export const ROOF_W = 480;
+export function paintRoof(ctx, t, st) {
+  vGradient(ctx, 0, 0, ROOF_W, 96, "#0a0e20", "#141a34", 12);
+  for (let i = 0; i < 60; i++) px(ctx, (i * 89) % ROOF_W, (i * 53) % 70, i % 4 ? "#2a3550" : "#6a7aa0");
+  rect(ctx, 70, 14, 8, 8, "#e8e8d0"); // moon
+  for (let i = 0; i < 8; i++) { const x = i * 64, h = 20 + (i % 3) * 12; rect(ctx, x, 70 - h, 52, h, "#0c1428"); for (let w = 4; w < 48; w += 8) if ((i * 7 + w) % 3) rect(ctx, x + w, 70 - h + 4, 4, 4, "#caa84a"); }
+  rect(ctx, 300, 28, 16, 42, "#10182c"); rect(ctx, 305, 12, 6, 58, "#0c1426"); for (let i = 0; i < 5; i++) px(ctx, 308, 6 + i, "#caa84a"); // cathedral
+  // deck
+  vGradient(ctx, 0, 96, ROOF_W, ROOM_H - 96, "#3a3f4a", "#22262e", 8); rect(ctx, 0, 96, ROOF_W, 2, "#566075");
+  rect(ctx, 40, 80, 40, 18, "#4a5160"); frame(ctx, 40, 80, 40, 18, "#2a3550"); for (let i = 0; i < 3; i++) rect(ctx, 46 + i * 12, 84, 8, 10, "#2a3550");
+  rect(ctx, 116, 86, 20, 12, "#3a4150");
+  ctx.fillStyle = "#c9a82f"; ctx.fillRect(150, 118, 3, 12); ctx.fillRect(168, 118, 3, 12); ctx.fillRect(153, 123, 15, 3); // helipad H
+  // door back down (left)
+  rect(ctx, 8, 70, 26, 28, "#1a1f28"); frame(ctx, 8, 70, 26, 28, "#2a3550");
+  // the escape drone (right) + dangling case
+  const dx = 392, dy = 40 + Math.sin(t * 3) * 3;
+  if (!st.flags.droneDown) {
+    rect(ctx, dx - 22, dy, 44, 4, "#2a2f3a");
+    for (const wx of [dx - 22, dx + 14]) { ctx.strokeStyle = "#6a7180"; ctx.lineWidth = 1; ctx.beginPath(); ctx.ellipse(wx + 4, dy - 2, 9, 2, 0, 0, Math.PI * 2); ctx.stroke(); }
+    const blade = (Math.sin(t * 40) > 0); if (blade) { for (const wx of [dx - 22, dx + 14]) rect(ctx, wx - 4, dy - 3, 16, 1, "#9aa3b4"); }
+    rect(ctx, dx - 7, dy + 2, 14, 9, "#d23b2b"); px(ctx, dx, dy + 5, "#9fe8ff");
+    rect(ctx, dx - 1, dy + 11, 2, 24, st.flags.tetherCut ? "#3a4150" : "#8a93a6");
+    if (!st.flags.tetherCut) { rect(ctx, dx - 6, dy + 35, 12, 10, "#5f3c1d"); if (!st.flags.tookMaster) sprite(ctx, ICONS.drive, dx - 7, dy + 34, { scale: 0.6 }); }
+  }
+  if (st.flags.tetherCut && !st.flags.tookMaster) { rect(ctx, dx - 6, 116, 12, 10, "#5f3c1d"); sprite(ctx, ICONS.drive, dx - 7, 114, { scale: 0.7 }); }
+}
+
+/* ---------------------------- prop helpers ----------------------------- */
 
 // Full-screen cutscene card: the crew biking across Linköping (day or night).
 export function paintBikeCard(ctx, t, night) {

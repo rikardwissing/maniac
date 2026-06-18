@@ -39,27 +39,43 @@ Open `index.html` in any modern browser, or play the deployed build.
   a teammate in the scene. The camera follows whoever you control.
 - **H** = Oskar's hint · **F** = fullscreen · **M** = mute.
 
-There's a small cast of **NPCs to talk to** (old-school adventure style): a
-Game-Master **host**, a street **busker**, a bank **guard**, and a **bartender** —
-two of them gate puzzles.
+## The scheme & the objective
+
+"The Vault" escape rooms are a front: the owner, **The Curator**, skims every
+visiting company's secrets and tonight is after Teamtailor's prototype,
+**Aurora**. Your objective (always on **J**): beat his rigged room, break into
+his **Control Room**, expose him, recover the data, stop him on the
+**Rooftop** — and *still* make AW.
+
+## A connected world (not a corridor)
+
+The **street is a hub** — walk between the **Office**, a **Cloetta kiosk**, the
+**Cathedral square**, **Ölbacken**, and **The Vault** (which leads down to the
+Control Room and up to the Rooftop). You'll **backtrack**: when the bank
+**guard** blocks the alarm, you leave the Vault, buy a **Cloetta bar** at the
+street kiosk, and come back. Old-school **NPCs** to talk to — a Game-Master
+**host**, a **busker**, the **guard**, a **bartender**, and **The Curator** —
+several gate puzzles.
 
 ### How to win (spoilers)
-1. **Office** — dig the cabinet key out of the plant → open the supply
-   cabinet → take the keycard + company card → badge out.
-2. **Street** — read the noticeboard for the booking, then **talk to the
-   host** and give your team name (*Teamtailor*) to get in.
-3. **Heist** — UV the poster (blacklight from the drawer, *or* Rikard's
-   phone) → cipher wheel → safe code `4 8 7 3` → grab the loot → buy a
-   **Cloetta bar** from the vending machine and **give it to the guard** to
-   clear the alarm → cut the alarm (wire cutters, *or* Per) → **co-op:** stand
-   one teammate on the pressure plate to power the vault, switch to another
-   and open it.
-4. **Ölbacken** — company card to the **bartender** to open a tab → tap the
-   keg → give a beer to the band for live music → eat → chat with the crew →
-   head home. *Skål!* 🍻
+1. **Office** — cabinet key from the plant → open the cabinet → keycard +
+   company card → out to the street.
+2. **Street (hub)** — read the board, tell the **host** you're *Teamtailor*,
+   enter The Vault. (Grab a **Cloetta bar** at the kiosk while you're here.)
+3. **Heist** — UV poster (drawer blacklight *or* Rikard's phone) → cipher
+   wheel → safe `4 8 7 3` → loot → **give the guard the Cloetta** (backtrack
+   to the kiosk if you skipped it) → cut the alarm (wire cutters *or* Per) →
+   **co-op** pressure plate powers the vault → open it.
+4. **Control Room** — kill the laser grid (Per *or* the mirror) → throw the
+   power lever → grab the **Aurora drive** + the **evidence** → confront **The
+   Curator**; he bolts upstairs.
+5. **Rooftop** — cut the drone's tether (wire cutters; Rikard/Per can jam it)
+   → grab the **master drive** → he's nicked.
+6. **Ölbacken** — card to the **bartender** for a tab → tap the keg → beer to
+   the band for live music → eat → toast the crew → home. *Skål!* 🍻
 
-The whole run is timed (with a nod to the 90-minute **escape clock**), and the
-ending grades your speed — Bronze → **Platinum**.
+The run is timed (with the 90-minute **escape clock**), and the ending grades
+your speed — Bronze → **Platinum**.
 
 ## Everything is hand-made
 
