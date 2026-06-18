@@ -3,63 +3,74 @@
 
 A retro **SCUMM-style point-and-click** retelling of the Teamtailor Linköping
 **product team's** night out: leave the office, pull off the **bank-heist
-escape room** downtown, then celebrate at **Ölbacken** — a keg, food, and the
-ride home.
+escape room** downtown, then a proper AW at **Ölbacken** — a tab, a keg, a
+**live band**, food, and good company.
 
-Just like *Maniac Mansion (1987)*, you control a **whole crew** and **switch
-between them** — and each teammate's real job is the key to a puzzle.
+Just like *Maniac Mansion (1987)*, you **pick a squad of 3** and **switch
+between them**. **Every scene is a puzzle**, and they're all solvable by *any*
+trio — bring whoever you like.
 
 Rendered into a single **320×200 pixel canvas** with a CRT bezel, **side-
 scrolling** rooms, a synthesized chiptune score, and a hand-authored pixel
-cast. No engine, no bundler — plain ES modules.
+cast. Plain ES modules — no engine, no bundler.
 
-## The crew (switch with **1–7** or click a face up top)
+## The crew — pick 3 (the other 4 turn up at AW)
 
-| # | Who | Role | Heist job |
-|---|-----|------|-----------|
-| 1 | **Jonas** | Platform dev | turns the **left** power valve |
-| 2 | **Anders** | Platform dev | turns the **right** power valve |
-| 3 | **Emil** | Aboard dev | solves the **cipher wheel** |
-| 4 | **Rikard** | Mobile dev | lights the **UV poster** with his phone |
-| 5 | **Oskar** | Co-pilot dev | gives **hints** (press **H**) |
-| 6 | **Caroline** | Payroll / controller | cracks the **safe** code |
-| 7 | **Per** | CISO | kills the **alarm** |
+| Who | Role | Signature move |
+|-----|------|----------------|
+| **Jonas** | Platform dev | heavy lifting / power |
+| **Anders** | Platform dev | heavy lifting / power |
+| **Emil** | Aboard dev | reads the cipher instantly |
+| **Rikard** | Mobile dev | phone UV torch (skips the blacklight) |
+| **Oskar** | Co-pilot dev | hints (press **H**) |
+| **Caroline** | Payroll / controller | cracks the safe like month-end |
+| **Per** | CISO | kills the alarm bare-handed |
+
+Specialists give shortcuts, but every puzzle has an item-based fallback, so
+no squad ever gets stuck.
 
 ## Play
 
 Open `index.html` in any modern browser, or play the deployed build.
 
 - **Click a verb, then a thing** — or just click; a bare click does the
-  sensible default. **Click a teammate** (or press their number) to take
-  control of them; the camera follows.
+  sensible default.
+- **Switch teammate:** press **1–3**, **Tab**, click a face up top, or click
+  a teammate in the scene. The camera follows whoever you control.
 - **H** = Oskar's hint · **F** = fullscreen · **M** = mute.
 
 ### How to win (spoilers)
-1. **Office** — pick up the keycard, open the EXIT door (far right).
-2. **Street** — walk right into *The Vault* escape rooms.
-3. **Heist** — *Rikard* UV-lights the poster → *Emil* reads the cipher
-   (code `4 8 7 3`) → *Caroline* opens the safe → grab the **loot** → *Per*
-   kills the alarm → *Jonas* & *Anders* turn both power valves → open the
-   vault and walk out.
-4. **Ölbacken** — tap the keg, eat, then head home. *Skål!* 🍻
+1. **Office** — dig the cabinet key out of the plant → open the supply
+   cabinet → take the keycard + company card → badge out.
+2. **Street** — read the noticeboard for the door code (`2013`) → buzz into
+   *The Vault*.
+3. **Heist** — UV the poster (blacklight from the drawer, *or* Rikard's
+   phone) → cipher wheel → safe code `4 8 7 3` → grab the loot → cut the
+   alarm (wire cutters from the toolbox, *or* Per) → **co-op:** stand one
+   teammate on the pressure plate to power the vault, switch to another and
+   open it.
+4. **Ölbacken** — company card on the tab → tap the keg → give a beer to the
+   band for live music → eat → chat with the crew → head home. *Skål!* 🍻
 
 ## Everything is hand-made
 
-- **Art** — every crew sprite (shared rig, recoloured per person, long-hair
-  variant) and item icon is hand-authored pixel data; the four wide rooms are
-  drawn procedurally (`js/art.js`, `js/pixel.js`).
+- **Art** — every crew sprite (shared rig, recoloured; long-hair variant) and
+  item icon is hand-authored pixel data; the four wide rooms are drawn
+  procedurally (`js/art.js`, `js/pixel.js`).
 - **Audio** — all SFX and per-room chiptune themes are synthesized live with
   Web Audio; no audio files (`js/audio.js`).
 - **Engine** — a small custom SCUMM-style engine: verbs, shared inventory,
-  depth-scaled walking, a **side-scroll camera**, a **switchable party**,
-  speech, dialogue, cutscenes (`js/engine.js`).
-- **Content** — rooms, the heist puzzle chain, and dialogue (`js/script.js`).
+  depth-scaled walking, a **side-scroll camera**, a **switchable squad**,
+  a **co-op** pressure-plate hook, speech, dialogue, cutscenes
+  (`js/engine.js`).
+- **Content** — rooms, the per-scene puzzles, and dialogue (`js/script.js`).
 
 ## Tests
 
 A headless browser test boots the game, captures any console/runtime errors,
-and solves the entire heist — switching to the right teammate at every gated
-station and driving all four rooms:
+and solves the whole night with a deliberately *non-specialist* trio
+(Jonas/Anders/Oskar) — proving every puzzle's fallback path and the co-op
+plate work, across all four rooms:
 
 ```bash
 npm install        # installs playwright
@@ -69,9 +80,9 @@ npm run shots      # regenerate screenshots into shots/
 
 ## Deploy
 
-See [`DEPLOY.md`](DEPLOY.md). In short: `sh build.sh` assembles `./site`,
-then deploy to **tailor.zone** (`tailor deploy ./site`) or **GitHub Pages**
-(the workflow in `.github/workflows/deploy.yml`).
+See [`DEPLOY.md`](DEPLOY.md). `sh build.sh` assembles `./site`, then deploy to
+**tailor.zone** (`tailor deploy ./site`) or **GitHub Pages**
+(`.github/workflows/deploy.yml`).
 
 ## Credits
 
