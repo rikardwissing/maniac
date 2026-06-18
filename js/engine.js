@@ -3,7 +3,7 @@
 import { rect, frame, sprite, mix } from "./pixel.js";
 import {
   ROOM_W, ROOM_H, ACTOR, ACTOR_W, ACTOR_H, SKINS, ICONS, actorShadow,
-  drawPortrait, TEAM,
+  drawPortrait, drawAccessory, TEAM,
 } from "./art.js";
 import { sfx, playMusic } from "./audio.js";
 
@@ -62,6 +62,10 @@ export const G = {
   flash: null,
   ending: null,
   onWin: null,
+  card: null,                      // full-screen cutscene card {draw, lines, until}
+  nextBark: 0,                     // ambient one-liner scheduler
+  runStart: null, runTime: null,   // overall speedrun timer
+  heistStart: null, vaultClock: null, // the 90-minute escape clock
 };
 
 /* ---------------------------------------------------------------- boot -- */
@@ -137,7 +141,10 @@ G.gotoRoom = (id, opts = {}) => {
   fadeTo(() => enterRoom(id, opts));
 };
 
-G.win = (payload) => { G.ending = payload; G.scene = "end"; sfx("win"); playMusic("bar"); };
+G.win = (payload) => {
+  if (G.runStart != null && G.runTime == null) G.runTime = G.t - G.runStart;
+  G.ending = payload; G.scene = "end"; sfx("win"); playMusic("bar");
+};
 
 // Spawn an NPC into the current room (used by content for dynamic colleagues).
 G.spawnActor = (def) => { const a = makeActor(def); G.actors.push(a); return a; };
@@ -169,6 +176,10 @@ function enterRoom(id, opts) {
   G.camX = Math.max(0, Math.min(w - ROOM_W, (G.player ? G.player.x : 160) - ROOM_W / 2));
   G.verb = "walkto"; G.primary = null;
   if (room.music) playMusic(room.music);
+  if (room.objective) {
+    G.objective = typeof room.objective === "function" ? room.objective(G) : room.objective;
+    G.hintMsg = { text: "OBJECTIVE: " + G.objective, until: G.t + 5.5 };
+  }
   if (room.onEnter) room.onEnter(G, opts);
 }
 
@@ -179,6 +190,7 @@ function makeActor(def) {
     id: def.id, kind: def.kind || "human", skin,
     name: def.name || meta.name || def.id,
     role: def.role || meta.role || "",
+    accessory: def.accessory || null,
     long: def.long !== undefined ? def.long : !!meta.long,
     x: def.x, y: def.y, dir: def.dir || "front",
     frame: 0, anim: 0, target: null, onArrive: null,
@@ -206,6 +218,9 @@ G.switchTo = (i) => {
 G.activeId = () => (G.player ? G.player.id : null);
 G.activeName = () => (G.player ? G.player.name : "");
 
+// Brief golden flash + chime when a specialist nails their own station.
+G.flash = () => { G.flashUntil = G.t + 0.5; sfx("tada"); };
+
 // Build the chosen squad of 3 and start the night.
 function beginAdventure(ids) {
   sfx("coin");
@@ -216,8 +231,16 @@ function beginAdventure(ids) {
   G.bench = TEAM.filter((t) => !ids.includes(t.id)).map((m) => ({ id: m.id, name: m.name, skin: m.skin, long: m.long, role: m.role }));
   G.activeIndex = 0;
   G.player = G.party[0];
-  fadeTo(() => { enterRoom("office", {}); G.scene = "play"; });
+  fadeTo(() => { enterRoom("office", {}); G.scene = "play"; G.runStart = G.t; G.nextBark = G.t + 8; });
 }
+
+// The 90-minute escape clock, ticked at 6× so it visibly counts down.
+const ESCAPE_BUDGET = 90 * 60;   // displayed seconds (90:00)
+G.escapeLeft = () => {
+  if (G.heistStart == null) return ESCAPE_BUDGET;
+  if (G.vaultClock != null) return G.vaultClock;
+  return Math.max(0, ESCAPE_BUDGET - (G.t - G.heistStart) * 6);
+};
 
 // any party member standing within a world-x band (for co-op puzzles)
 G.partyOnArea = (x1, x2) => G.party.some((p) => p.x >= x1 && p.x <= x2);
@@ -255,6 +278,7 @@ function onKey(e) {
   if (e.key >= "1" && e.key <= "9") { const i = +e.key - 1; if (i < G.party.length) G.switchTo(i); }
   else if (e.key === "Tab") { e.preventDefault(); G.switchTo((G.activeIndex + 1) % G.party.length); }
   else if (e.key.toLowerCase() === "h") askHint();
+  else if (e.key.toLowerCase() === "j" && G.objective) G.hintMsg = { text: "OBJECTIVE: " + G.objective, until: G.t + 5 };
 }
 
 // portrait bar geometry (screen space, top-left)
@@ -312,6 +336,8 @@ function onClick() {
   if (G.scene === "select") { clickSelect(x, y); return; }
   if (G.scene === "end") { if (G.ending && G.ending.replay) location.reload(); return; }
 
+  // a cutscene card: click to skip it
+  if (G.card) { G.card.until = 0; return; }
   // skip speech first
   if (G.current) { G.current.until = 0; return; }
   if (G.speech.length) return;
@@ -511,6 +537,26 @@ function updateActor(a, dt) {
   a.bob += dt;
 }
 
+/* ----------------------------------------------- ambient idle barks ---- */
+// Occasionally a present teammate says a room-appropriate one-liner — only
+// when nothing else is going on, so it never interrupts play.
+function maybeBark(now, room) {
+  if (!room || !room.barks || G.cs || G.choices || G.current || G.speech.length) return;
+  if (now < G.nextBark) return;
+  G.nextBark = now + 9 + Math.random() * 8;
+  const here = [...G.party, ...G.actors];
+  const barks = room.barks;
+  // prefer a bark whose speaker is present; else attribute to a random teammate
+  for (let tries = 0; tries < 6; tries++) {
+    const b = barks[(Math.random() * barks.length) | 0];
+    const id = Array.isArray(b) ? b[0] : null;
+    const line = Array.isArray(b) ? b[1] : b;
+    if (id) { if (here.some((a) => a.id === id)) { G.say(id, line); return; } continue; }
+    const who = here[(Math.random() * here.length) | 0];
+    if (who) { G.say(who.id, line); return; }
+  }
+}
+
 /* -------------------------------------------------------------- speech -- */
 function updateSpeech(now) {
   if (G.current) {
@@ -566,6 +612,9 @@ function advanceCS() {
     G.cs.mode = "walk";
   } else if (step.wait) {
     G.cs.mode = "wait"; G.cs.until = G.t + step.wait / 1000;
+  } else if (step.card) {
+    G.card = { draw: step.card.draw, lines: step.card.lines || [], until: G.t + (step.card.wait || 3000) / 1000 };
+    G.cs.mode = "card";
   } else {
     if (step.do) step.do(G);
     if (step.flag) G.setFlag(step.flag[0], step.flag[1] === undefined ? true : step.flag[1]);
@@ -582,6 +631,8 @@ function updateCS(now) {
     if (!G.current && G.speech.length === 0) advanceCS();
   } else if (G.cs.mode === "wait") {
     if (now >= G.cs.until) advanceCS();
+  } else if (G.cs.mode === "card") {
+    if (now >= G.card.until) { G.card = null; advanceCS(); }
   }
   // walk handled by onArrive
 }
@@ -613,6 +664,7 @@ function loop(ts) {
     updateCS(now);
     const tickRoom = G.rooms[G.state.room];
     if (tickRoom && tickRoom.tick) tickRoom.tick(G);
+    maybeBark(now, tickRoom);
     // smooth side-scroll camera follows the active crew member
     const room = G.rooms[G.state.room];
     const w = (room && room.width) || ROOM_W;
@@ -671,11 +723,54 @@ function render() {
 
   drawSpeech(ctx, camX);
   drawPortraits(ctx);
+  drawHUD(ctx);
   drawHint(ctx);
   drawPanel(ctx);
   if (G.choices) drawChoices(ctx);
+  if (G.card) drawCard(ctx);
+  if (G.flashUntil && G.t < G.flashUntil) {
+    const a = (G.flashUntil - G.t) / 0.5;
+    ctx.fillStyle = `rgba(242,208,74,${0.35 * a})`; ctx.fillRect(0, 0, ROOM_W, ROOM_H);
+  }
   if (G.fade > 0) { ctx.fillStyle = `rgba(0,0,0,${G.fade})`; ctx.fillRect(0, 0, SCREEN_W, SCREEN_H); }
   renderCursor(ctx);
+}
+
+function runRank(sec) {
+  if (sec < 90) return "PLATINUM";
+  if (sec < 150) return "GOLD";
+  if (sec < 240) return "SILVER";
+  return "BRONZE";
+}
+
+function fmtTime(sec) {
+  sec = Math.max(0, Math.floor(sec));
+  const m = Math.floor(sec / 60), s = sec % 60;
+  return m + ":" + (s < 10 ? "0" + s : s);
+}
+
+// top-right run timer + (in the heist) the 90-minute escape clock
+function drawHUD(ctx) {
+  if (G.runStart != null) {
+    const t = G.runTime != null ? G.runTime : G.t - G.runStart;
+    text(ctx, "TIME " + fmtTime(t), SCREEN_W - 2, 2, "#8a93a6", { align: "right", size: 8 });
+  }
+  if (G.state.room === "heist" && !G.flag("escaped")) {
+    const left = G.escapeLeft();
+    const low = left < 15 * 60;
+    const blink = low && (Math.sin(G.t * 6) > 0);
+    text(ctx, "ESCAPE " + fmtTime(left), SCREEN_W / 2, 2, blink ? "#d23b2b" : low ? "#e8902f" : "#f2d04a", { align: "center", size: 8 });
+  }
+}
+
+function drawCard(ctx) {
+  ctx.fillStyle = "#06060c"; ctx.fillRect(0, 0, SCREEN_W, SCREEN_H);
+  if (G.card.draw) G.card.draw(ctx, G.t);
+  const lines = G.card.lines || [];
+  const baseY = SCREEN_H - lines.length * 11 - 10;
+  ctx.fillStyle = "rgba(6,6,12,0.7)"; ctx.fillRect(0, baseY - 4, SCREEN_W, lines.length * 11 + 8);
+  lines.forEach((l, i) => text(ctx, l, SCREEN_W / 2, baseY + i * 11, "#f2d04a", { align: "center" }));
+  if (Math.sin(G.t * 3) > 0) text(ctx, "click ▸", SCREEN_W - 4, SCREEN_H - 10, "#5a6678", { align: "right", size: 8 });
 }
 
 // portrait bar across the top — click (or 1-7) to switch crew member
@@ -728,6 +823,7 @@ function drawActor(ctx, a) {
   }
   const bob = stepping ? Math.round(Math.sin(a.anim * Math.PI)) : 0;
   sprite(ctx, frames, x, y + bob, { scale: sc, flip, override: a.skin });
+  if (a.accessory) drawAccessory(ctx, a.accessory, x, y + bob, sc);
 }
 
 function drawSpeech(ctx, camX) {
@@ -872,6 +968,11 @@ function renderEnding(ctx) {
 
   text(ctx, e.title || "THE END", SCREEN_W / 2, 14, "#f2d04a", { align: "center" });
   (e.lines || []).forEach((l, i) => text(ctx, l, SCREEN_W / 2, 36 + i * 11, "#34d0b4", { align: "center" }));
+  const extra = [];
+  if (G.runTime != null) extra.push("Run " + fmtTime(G.runTime));
+  if (G.vaultClock != null) extra.push("Vault clock " + fmtTime(G.vaultClock));
+  if (extra.length) text(ctx, extra.join("  ·  "), SCREEN_W / 2, 140, "#f2d04a", { align: "center" });
+  if (G.runTime != null) text(ctx, "RANK: " + runRank(G.runTime), SCREEN_W / 2, 152, "#34d0b4", { align: "center" });
 
   // the whole crew lined up, raising a glass
   const n = G.party.length || TEAM.length;
@@ -882,8 +983,8 @@ function renderEnding(ctx) {
     const cx = 10 + cw * i + cw / 2;
     sprite(ctx, m.long ? ACTOR.FRONT_L : ACTOR.FRONT, cx - ACTOR_W * 1.2 / 2, 104, { scale: 1.2, override: m.skin });
   }
-  text(ctx, "Skål! / Cheers!", SCREEN_W / 2, 158, "#f2d04a", { align: "center" });
+  text(ctx, "Skål! / Cheers!", SCREEN_W / 2, 168, "#f2d04a", { align: "center" });
   const blink = Math.sin(G.t * 3) > 0;
-  if (blink) text(ctx, "click to play again", SCREEN_W / 2, 182, "#9fe0d6", { align: "center" });
+  if (blink) text(ctx, "click to play again", SCREEN_W / 2, 184, "#9fe0d6", { align: "center" });
   renderCursor(ctx);
 }

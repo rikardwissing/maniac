@@ -52,7 +52,8 @@ const ff = async () => {
     const G = window.__MM;
     for (let i = 0; i < 80; i++) {
       G.speech.length = 0; G.current = null;
-      if (!G.cs && G.fadeDir === 0) break;
+      if (G.card) G.card.until = 0;          // skip cutscene cards
+      if (!G.cs && G.fadeDir === 0 && !G.card) break;
       await new Promise((r) => setTimeout(r, 50));
     }
   });
@@ -91,11 +92,14 @@ try {
   s = await state(); console.log("after office:", JSON.stringify(s));
   must(s.room === "street", "expected street, got " + s.room);
 
-  // ---- STREET: read code -> buzz in ----
-  await run("O('venue').use(G)");                 // blocked: no PIN yet
-  must((await state()).room === "street", "venue opened without PIN");
-  await run("O('board').look(G)");                // learn PIN
-  await run("O('venue').use(G)"); await ff(); await page.waitForTimeout(200); await ff();
+  // ---- STREET: read the board, then tell the host (NPC) your team name ----
+  await run("O('host').talk(G)");                 // host: check the board first
+  must((await state()).room === "street", "entered before knowing the booking");
+  await run("O('busker').talk(G)");               // flavour NPC
+  await run("O('board').look(G)");                // learn the booking
+  await run("O('host').talk(G)");                 // host asks which team
+  await run("G.choices.list[0].fn(G)");           // answer "Teamtailor"
+  await ff(); await page.waitForTimeout(200); await ff();
   s = await state(); console.log("after street:", JSON.stringify(s));
   must(s.room === "heist", "expected heist, got " + s.room);
 
@@ -107,7 +111,18 @@ try {
   await run("O('safe').use(G)");
   await run("O('loot').pickup(G)");
   await run("O('toolbox').open(G)"); await run("O('cutitem').pickup(G)");
-  await run("O('alarm').use(G)");    // uses wire cutters (no Per in squad)
+  // NPC + BACKTRACK puzzle: the guard blocks the alarm; chocolate is out on
+  // the street, so leave the Vault, buy it at the kiosk, and come back.
+  await run("O('alarm').use(G)");
+  must(!(await page.evaluate(() => window.__MM.flag("alarmOff"))), "alarm cut with guard present");
+  await run("O('wayout').use(G)"); await ff(); await page.waitForTimeout(150); await ff();
+  must((await state()).room === "street", "wayout didn't reach street, got " + (await state()).room);
+  await run("O('kiosk').use(G)");
+  must(await page.evaluate(() => window.__MM.has("choklad")), "no choklad from kiosk");
+  await run("O('venue').use(G)"); await ff(); await page.waitForTimeout(150); await ff();
+  must((await state()).room === "heist", "venue didn't return to the heist");
+  await run("O('guard').give.choklad(G)"); // distract the guard
+  await run("O('alarm').use(G)");          // now cuts with wire cutters
   // co-op: park a teammate on the plate, then operate the vault as another
   await run("O('vault').open(G)");   // blocked: nobody on plate
   must((await state()).room === "heist", "vault opened with no power");
@@ -121,8 +136,31 @@ try {
   must(hf.length === 5, "heist steps incomplete: " + hf.join(","));
   await run("O('vault').open(G)"); await ff(); await page.waitForTimeout(300); await ff();
   s = await state(); console.log("after heist:", JSON.stringify(s));
-  must(s.room === "pub", "expected pub, got " + s.room);
+  must(s.room === "control", "expected control, got " + s.room);
   must(s.inv.includes("loot") && s.inv.includes("gold"), "loot/gold missing");
+
+  // ---- CONTROL ROOM (no Per -> use the mirror; expose the villain) ----
+  await run("O('lasers').use(G)");                // blocked — no Per, no mirror
+  must(!(await page.evaluate(() => window.__MM.flag("lasersOff"))), "lasers off without per/mirror");
+  await run("O('mirror').pickup(G)");
+  await run("O('lasers').use(G)");
+  await run("O('lever').use(G)");
+  await run("O('prototype').pickup(G)");
+  await run("O('evidence').pickup(G)");
+  await run("O('curator').talk(G)"); await ff();  // triggers his flee cutscene
+  must(await page.evaluate(() => window.__MM.flag("curatorFled")), "curator did not flee");
+  await run("O('stairs').use(G)"); await ff(); await page.waitForTimeout(300); await ff();
+  s = await state(); console.log("after control:", JSON.stringify(s));
+  must(s.room === "roof", "expected roof, got " + s.room);
+  must(s.inv.includes("prototype") && s.inv.includes("evidence"), "prototype/evidence missing");
+
+  // ---- ROOFTOP (no Rikard/Per -> wire cutters cut the tether) ----
+  await run("O('drone').use(G)");
+  must(await page.evaluate(() => window.__MM.flag("tetherCut")), "tether not cut");
+  await run("O('master').pickup(G)"); await ff(); await page.waitForTimeout(300); await ff();
+  s = await state(); console.log("after roof:", JSON.stringify(s));
+  must(s.room === "pub", "expected pub, got " + s.room);
+  must(s.inv.includes("master"), "master drive missing");
 
   // ---- ÖLBACKEN: tab -> keg -> band -> food -> home ----
   must((await page.evaluate(() => window.__MM.actors.length)) >= 4, "bench teammates not present at AW");
@@ -138,7 +176,7 @@ try {
     return ["tabOpen", "kegTapped", "musicOn", "ateFood"].filter((k) => f[k]);
   });
   must(pf.length === 4, "pub steps incomplete: " + pf.join(","));
-  await run("O('home').open(G)"); await ff(); await page.waitForTimeout(300); await ff();
+  await run("O('home').use(G)"); await ff(); await page.waitForTimeout(300); await ff();
   await page.waitForFunction(() => window.__MM.scene === "end", null, { timeout: 6000 });
   s = await state(); console.log("FINAL:", JSON.stringify(s));
   must(s.scene === "end", "did not reach ending");

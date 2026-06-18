@@ -44,6 +44,9 @@ jobs:
 
   deploy:
     needs: build
+    # Only publish from the default branch; the github-pages environment
+    # restricts deployments to main, so feature-branch runs just build (green).
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment:
       name: github-pages

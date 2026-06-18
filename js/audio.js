@@ -94,6 +94,9 @@ export function sfx(name) {
     case "bug":    tone(NOTE["C2"], t, 0.3, "sawtooth", 0.2, NOTE["G2"]); noise(t, 0.3, 0.08); break;
     case "ride":   tone(NOTE["C4"], t, 0.5, "triangle", 0.16, NOTE["C5"]); break;
     case "coin":   tone(NOTE["B5"], t, 0.05, "square", 0.2); tone(NOTE["E6"], t + 0.05, 0.18, "square", 0.2); break;
+    case "tada":   ["C5","E5","G5","C6"].forEach((n,i)=>tone(NOTE[n], t+i*0.07, 0.22, "square", 0.2)); tone(NOTE["G5"], t, 0.4, "triangle", 0.1); break;
+    case "rumble": { for (let i=0;i<3;i++) noise(t+i*0.12, 0.4, 0.14); tone(NOTE["C2"], t, 0.7, "sawtooth", 0.18, NOTE["C1"]); break; }
+    case "band":   ["C3","G3","C4","E4","G4","E4","C4","G3"].forEach((n,i)=>tone(NOTE[n], t+i*0.09, 0.12, "triangle", 0.16)); ["C5","E5","G5"].forEach((n,i)=>tone(NOTE[n], t+0.2+i*0.12, 0.2, "square", 0.12)); break;
   }
 }
 
