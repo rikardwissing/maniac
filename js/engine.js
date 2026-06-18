@@ -43,7 +43,9 @@ export const G = {
   rooms: {}, items: {},
   state: null,
   player: null,                    // the currently-controlled crew member
-  party: [],                       // the whole crew (switchable, Maniac-Mansion style)
+  party: [],                       // the selected squad of 3 (switchable, MM-style)
+  bench: [],                       // teammates not picked — they show up at AW
+  selected: [],                    // ids chosen on the select screen
   activeIndex: 0,
   actors: [],                      // room NPCs (non-party)
   camX: 0,                         // side-scroll camera offset (world->screen)
@@ -204,14 +206,22 @@ G.switchTo = (i) => {
 G.activeId = () => (G.player ? G.player.id : null);
 G.activeName = () => (G.player ? G.player.name : "");
 
-// Build the crew and start the night.
-function beginAdventure() {
+// Build the chosen squad of 3 and start the night.
+function beginAdventure(ids) {
   sfx("coin");
-  G.party = TEAM.map((m, i) => makeActor({ id: m.id, skin: m.skin, x: 40 + i * 14, y: 124, dir: "right" }));
+  G.party = ids.map((id) => {
+    const m = TEAM.find((t) => t.id === id);
+    return makeActor({ id, skin: m.skin, x: 40, y: 124, dir: "right" });
+  });
+  G.bench = TEAM.filter((t) => !ids.includes(t.id)).map((m) => ({ id: m.id, name: m.name, skin: m.skin, long: m.long, role: m.role }));
   G.activeIndex = 0;
   G.player = G.party[0];
   fadeTo(() => { enterRoom("office", {}); G.scene = "play"; });
 }
+
+// any party member standing within a world-x band (for co-op puzzles)
+G.partyOnArea = (x1, x2) => G.party.some((p) => p.x >= x1 && p.x <= x2);
+G.inParty = (id) => G.party.some((p) => p.id === id);
 
 function roomScale(y) {
   const room = G.rooms[G.state.room];
@@ -267,6 +277,27 @@ function partyAt(wx, wy) {
   return -1;
 }
 
+/* ----- squad-of-3 selection ----- */
+const SEL_Y0 = 44, SEL_Y1 = 116, START_Y = 168, START_H = 22, START_HW = 84;
+function clickSelect(x, y) {
+  const n = TEAM.length, cw = SCREEN_W / n;
+  if (y > SEL_Y0 && y < SEL_Y1) {
+    const i = Math.floor(x / cw);
+    if (i >= 0 && i < n) toggleSelect(TEAM[i].id);
+    return;
+  }
+  if (G.selected.length === 3 && y >= START_Y && y <= START_Y + START_H &&
+      x >= SCREEN_W / 2 - START_HW && x <= SCREEN_W / 2 + START_HW) {
+    beginAdventure(G.selected.slice());
+  }
+}
+function toggleSelect(id) {
+  const k = G.selected.indexOf(id);
+  if (k >= 0) { G.selected.splice(k, 1); sfx("verb"); }
+  else if (G.selected.length < 3) { G.selected.push(id); sfx("select"); }
+  else { sfx("error"); }
+}
+
 // Oskar (co-pilot) offers a contextual hint.
 function askHint() {
   const room = G.rooms[G.state.room];
@@ -278,7 +309,7 @@ function askHint() {
 function onClick() {
   const { x, y } = G.mouse;
 
-  if (G.scene === "select") { beginAdventure(); return; }
+  if (G.scene === "select") { clickSelect(x, y); return; }
   if (G.scene === "end") { if (G.ending && G.ending.replay) location.reload(); return; }
 
   // skip speech first
@@ -580,6 +611,8 @@ function loop(ts) {
     G.party.forEach((a) => updateActor(a, dt));
     updateSpeech(now);
     updateCS(now);
+    const tickRoom = G.rooms[G.state.room];
+    if (tickRoom && tickRoom.tick) tickRoom.tick(G);
     // smooth side-scroll camera follows the active crew member
     const room = G.rooms[G.state.room];
     const w = (room && room.width) || ROOM_W;
@@ -790,28 +823,43 @@ function renderSelect(ctx) {
     const sx = (i * 73) % SCREEN_W, sy = (i * 137) % SCREEN_H;
     ctx.fillStyle = i % 5 ? "#1c1c30" : "#33335a"; ctx.fillRect(sx, sy, 1, 1);
   }
-  text(ctx, "THE HEIST AFTER WORK", SCREEN_W / 2, 12, "#f2d04a", { align: "center" });
-  text(ctx, "Teamtailor Linköping · Product team", SCREEN_W / 2, 26, "#34d0b4", { align: "center" });
+  text(ctx, "THE HEIST AFTER WORK", SCREEN_W / 2, 8, "#f2d04a", { align: "center" });
+  text(ctx, "Pick your squad of 3", SCREEN_W / 2, 24, "#34d0b4", { align: "center" });
 
   const n = TEAM.length, cw = SCREEN_W / n;
   let hi = -1;
   for (let i = 0; i < n; i++) {
     const m = TEAM[i];
     const cx = cw * i + cw / 2;
-    const hover = G.mouse.x > cw * i && G.mouse.x < cw * (i + 1) && G.mouse.y > 42 && G.mouse.y < 120;
-    if (hover) { hi = i; ctx.fillStyle = "rgba(0,169,143,0.12)"; ctx.fillRect(cw * i + 1, 42, cw - 2, 78); }
-    sprite(ctx, m.long ? ACTOR.FRONT_L : ACTOR.FRONT, cx - ACTOR_W * 1.3 / 2, 50, { scale: 1.3, override: SKINS[m.skin] });
-    text(ctx, m.name, cx, 100, hover ? "#f2d04a" : "#d6d6d0", { align: "center", size: 8 });
+    const sel = G.selected.includes(m.id);
+    const hover = G.mouse.x > cw * i && G.mouse.x < cw * (i + 1) && G.mouse.y > SEL_Y0 && G.mouse.y < SEL_Y1;
+    if (sel) { ctx.fillStyle = "rgba(242,208,74,0.16)"; ctx.fillRect(cw * i + 1, SEL_Y0, cw - 2, SEL_Y1 - SEL_Y0); }
+    else if (hover) { ctx.fillStyle = "rgba(0,169,143,0.12)"; ctx.fillRect(cw * i + 1, SEL_Y0, cw - 2, SEL_Y1 - SEL_Y0); }
+    if (hover) hi = i;
+    sprite(ctx, m.long ? ACTOR.FRONT_L : ACTOR.FRONT, cx - ACTOR_W * 1.25 / 2, 50, { scale: 1.25, override: SKINS[m.skin] });
+    text(ctx, m.name, cx, 98, sel ? "#f2d04a" : hover ? "#f6f6fb" : "#d6d6d0", { align: "center", size: 8 });
+    if (sel) { // hand-drawn check mark (no font glyph needed)
+      ctx.fillStyle = "#f2d04a";
+      ctx.fillRect(cx - 4, SEL_Y0 + 5, 2, 2); ctx.fillRect(cx - 2, SEL_Y0 + 7, 2, 2);
+      ctx.fillRect(cx, SEL_Y0 + 4, 2, 2); ctx.fillRect(cx + 2, SEL_Y0 + 2, 2, 2); ctx.fillRect(cx + 4, SEL_Y0, 2, 2);
+    }
   }
   if (hi >= 0) {
-    text(ctx, TEAM[hi].role, SCREEN_W / 2, 128, "#9fe0d6", { align: "center" });
-    wrap(ctx, TEAM[hi].blurb, 300).forEach((l, k) => text(ctx, l, SCREEN_W / 2, 142 + k * 10, "#8a93a6", { align: "center" }));
+    text(ctx, TEAM[hi].role, SCREEN_W / 2, 120, "#9fe0d6", { align: "center" });
+    wrap(ctx, TEAM[hi].blurb, 300).forEach((l, k) => text(ctx, l, SCREEN_W / 2, 132 + k * 10, "#8a93a6", { align: "center" }));
   } else {
-    wrap(ctx, "Yesterday the whole crew went out. Switch between them (1-7 or click a face) to pull off the job. Press H for a hint.", 300)
-      .forEach((l, k) => text(ctx, l, SCREEN_W / 2, 128 + k * 10, "#8a93a6", { align: "center" }));
+    text(ctx, `Selected ${G.selected.length}/3 · switch with 1-3 in-game · H for hints`, SCREEN_W / 2, 124, "#8a93a6", { align: "center" });
+    wrap(ctx, "Each scene is a puzzle; bring a balanced crew. Everyone reunites at Ölbacken.", 300)
+      .forEach((l, k) => text(ctx, l, SCREEN_W / 2, 138 + k * 10, "#8a93a6", { align: "center" }));
   }
-  const blink = Math.sin(G.t * 4) > 0;
-  if (blink) text(ctx, "CLICK TO START THE NIGHT", SCREEN_W / 2, 184, "#f2d04a", { align: "center" });
+  // START button (only when 3 chosen)
+  if (G.selected.length === 3) {
+    const bx = SCREEN_W / 2 - START_HW, hover = G.mouse.y >= START_Y && G.mouse.y <= START_Y + START_H && Math.abs(G.mouse.x - SCREEN_W / 2) <= START_HW;
+    ctx.fillStyle = hover ? "#f2d04a" : "#c9a82f"; ctx.fillRect(bx, START_Y, START_HW * 2, START_H);
+    text(ctx, "START THE NIGHT ▶", SCREEN_W / 2, START_Y + 7, "#0a0816", { align: "center", shadow: false });
+  } else {
+    text(ctx, "PICK 3 TEAMMATES", SCREEN_W / 2, START_Y + 7, "#6a6a82", { align: "center" });
+  }
   renderCursor(ctx);
 }
 

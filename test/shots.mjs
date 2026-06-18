@@ -12,36 +12,40 @@ await page.waitForFunction(()=>window.__MM&&window.__MM.fontReady,null,{timeout:
 const shot = async (name)=>{ await page.waitForTimeout(250); const el=await page.$("#bezel"); await el.screenshot({path:`shots/${name}.png`}); console.log("shot",name); };
 const run = (e)=>page.evaluate((x)=>{const G=window.__MM;const O=(id)=>G.rooms[G.state.room].objects.find(o=>o.id===id);return eval(x);},e);
 const ff = async ()=>{ await page.evaluate(async()=>{const G=window.__MM;for(let i=0;i<80;i++){G.speech.length=0;G.current=null;if(!G.cs&&G.fadeDir===0)break;await new Promise(r=>setTimeout(r,50));}}); await page.waitForTimeout(150); };
-// place active char + snap camera, for showcasing the side-scroll
 const place = (x)=>run(`G.player.x=${x}; G.player.target=null; G.camX=Math.max(0,Math.min((G.rooms[G.state.room].width||320)-320, ${x}-160));`);
 
 await page.waitForTimeout(400); await shot("01-title");
+await page.click("#startBtn"); await page.waitForTimeout(300);
+await run("G.selected=['rikard','caroline']"); await page.waitForTimeout(60); await shot("02-roster");
+await run("G.selected=['rikard','caroline','per']"); await page.waitForTimeout(60);
 const rect = await page.evaluate(()=>{const c=document.getElementById("screen").getBoundingClientRect();return{l:c.left,t:c.top,w:c.width,h:c.height};});
-await page.click("#startBtn"); await page.waitForTimeout(300); await shot("02-roster");
-await page.mouse.click(rect.l+rect.w/2, rect.t+rect.h/2); await ff();
+await page.mouse.click(rect.l+rect.w/2, rect.t+(179/200)*rect.h); await ff();
 await shot("03-office");
 
-await run("O('card').pickup(G)"); await run("O('door').open(G)"); await ff(); await page.waitForTimeout(200); await ff();
-await place(120); await shot("04-street");
-await run("O('venue').open(G)"); await ff(); await page.waitForTimeout(200); await ff();
+// OFFICE
+await run("O('plant').pickup(G)"); await run("O('cabinet').open(G)"); await run("O('badges').pickup(G)");
+await run("O('door').open(G)"); await ff(); await page.waitForTimeout(200); await ff();
+await place(380); await shot("04-street");
+await run("O('board').look(G)"); await page.waitForTimeout(200); await shot("05-street-board");
+await run("O('venue').use(G)"); await ff(); await page.waitForTimeout(200); await ff();
 
-// heist — show the left stations + a "wrong character" hint
-await run("G.switchTo('jonas')"); await place(90);
-await run("G.hintMsg={text:'Oskar: switch to Rikard (mobile) and Use his phone on the UV poster.',until:G.t+9}");
-await shot("05-heist-left");
-await run("G.switchTo('rikard')"); await run("O('poster').use(G)"); await page.waitForTimeout(250); await shot("06-rikard-uv");
-await run("G.switchTo('emil')"); await run("O('wheel').use(G)"); await ff();
-// mid — safe, switch to Caroline
-await run("G.switchTo('caroline')"); await place(330); await run("O('safe').use(G)"); await page.waitForTimeout(250); await shot("07-caroline-safe");
-await run("O('loot').pickup(G)"); await ff();
-await run("G.switchTo('per')"); await place(452); await run("O('alarm').use(G)"); await page.waitForTimeout(200);
-await run("G.switchTo('jonas')"); await run("O('valveL').use(G)");
-await run("G.switchTo('anders')"); await run("O('valveR').use(G)");
+// HEIST — Rikard uses phone UV (in squad), show left then steps then co-op
+await run("G.switchTo('rikard')"); await place(70); await page.waitForTimeout(150);
+await run("O('poster').use(G)"); await page.waitForTimeout(250); await shot("06-heist-uv");
+await run("O('wheel').use(G)"); await ff();
+await run("G.switchTo('caroline')"); await place(330); await run("O('safe').use(G)"); await page.waitForTimeout(250); await shot("07-safe");
+await run("O('loot').pickup(G)");
+await run("G.switchTo('per')"); await place(452); await run("O('alarm').use(G)"); await page.waitForTimeout(150);
+// co-op: park Caroline on the plate, operate vault as Per
+await run("G.party[1].x=521; G.party[1].target=null;"); await page.waitForTimeout(200);
 await place(600); await shot("08-heist-vault");
 await run("O('vault').open(G)"); await ff(); await page.waitForTimeout(300); await ff();
+
+// PUB
 await shot("09-pub");
-await run("O('keg').use(G)"); await page.waitForTimeout(200); await run("O('food').use(G)"); await page.waitForTimeout(200);
+await run("O('tab').give.card(G)"); await run("O('keg').use(G)"); await run("O('band').give.beer(G)"); await run("O('food').use(G)");
+await page.waitForTimeout(250); await place(300); await run("O('crew').talk(G)"); await page.waitForTimeout(250); await shot("10-pub-live");
 await run("O('home').open(G)"); await ff(); await page.waitForTimeout(500); await ff(); await page.waitForTimeout(600);
-await shot("10-ending");
+await shot("11-ending");
 
 await browser.close(); server.close(); console.log("done");

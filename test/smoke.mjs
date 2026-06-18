@@ -33,12 +33,18 @@ await page.waitForFunction(() => window.__MM && window.__MM.fontReady, null, { t
 
 await page.click("#startBtn");
 await page.waitForTimeout(250);
-// click the canvas to begin the adventure (select scene -> beginAdventure)
+// select a squad of 3 (NOT including the "ideal" specialists, to prove the
+// item-based fallbacks work for any trio), then START.
+await page.evaluate(() => {
+  const G = window.__MM;
+  G.selected = ["jonas", "anders", "oskar"]; // no Rikard/Emil/Caroline/Per
+});
 const rect = await page.evaluate(() => {
   const c = document.getElementById("screen").getBoundingClientRect();
   return { l: c.left, t: c.top, w: c.width, h: c.height };
 });
-await page.mouse.click(rect.l + rect.w / 2, rect.t + rect.h / 2);
+// click the START button (centre, y~179 of 200)
+await page.mouse.click(rect.l + rect.w / 2, rect.t + (179 / 200) * rect.h);
 await page.waitForTimeout(500);
 
 const ff = async () => {
@@ -73,53 +79,70 @@ try {
   await ff();
   let s = await state(); console.log("start:", JSON.stringify(s));
   must(s.room === "office", "expected office, got " + s.room);
-  must(s.party.length === 7, "party should be 7, got " + s.party.length);
+  must(s.party.length === 3, "squad should be 3, got " + s.party.length);
+  must(JSON.stringify(s.party) === JSON.stringify(["jonas", "anders", "oskar"]), "wrong squad: " + s.party);
 
-  // ---- OFFICE ----
-  await run("O('card').pickup(G)");
+  // ---- OFFICE: plant key -> cabinet -> badges -> door ----
+  await run("O('plant').pickup(G)");
+  await run("O('cabinet').open(G)");
+  await run("O('badges').pickup(G)");
+  must((await state()).inv.includes("keycard"), "no keycard after cabinet");
   await run("O('door').open(G)"); await ff(); await page.waitForTimeout(200); await ff();
   s = await state(); console.log("after office:", JSON.stringify(s));
-  must(s.inv.includes("keycard"), "no keycard");
   must(s.room === "street", "expected street, got " + s.room);
 
-  // ---- STREET ----
-  await run("O('venue').open(G)"); await ff(); await page.waitForTimeout(200); await ff();
+  // ---- STREET: read code -> buzz in ----
+  await run("O('venue').use(G)");                 // blocked: no PIN yet
+  must((await state()).room === "street", "venue opened without PIN");
+  await run("O('board').look(G)");                // learn PIN
+  await run("O('venue').use(G)"); await ff(); await page.waitForTimeout(200); await ff();
   s = await state(); console.log("after street:", JSON.stringify(s));
   must(s.room === "heist", "expected heist, got " + s.room);
 
-  // ---- HEIST (character-gated stations) ----
-  // wrong character first -> should be blocked (loot not obtainable yet)
-  await run("G.switchTo('jonas')"); await run("O('poster').use(G)");
-  s = await page.evaluate(() => window.__MM.flag("uvSeen"));
-  must(s === false, "uvSeen should be false for wrong character");
-
-  await run("G.switchTo('rikard')"); await run("O('poster').use(G)");
-  await run("G.switchTo('emil')");   await run("O('wheel').use(G)");
-  await run("G.switchTo('caroline')"); await run("O('safe').use(G)");
+  // ---- HEIST: solved by a NON-specialist trio via item fallbacks + co-op ----
+  await run("O('drawer').open(G)");  await run("O('uvitem').pickup(G)");
+  await run("O('poster').use(G)");   // uses uvlight (no Rikard in squad)
+  must(await page.evaluate(() => window.__MM.flag("uvSeen")), "uvSeen not set via item");
+  await run("O('wheel').use(G)");
+  await run("O('safe').use(G)");
   await run("O('loot').pickup(G)");
-  await run("G.switchTo('per')");    await run("O('alarm').use(G)");
-  await run("G.switchTo('jonas')");  await run("O('valveL').use(G)");
-  await run("G.switchTo('anders')"); await run("O('valveR').use(G)");
-  const flags = await page.evaluate(() => {
+  await run("O('toolbox').open(G)"); await run("O('cutitem').pickup(G)");
+  await run("O('alarm').use(G)");    // uses wire cutters (no Per in squad)
+  // co-op: park a teammate on the plate, then operate the vault as another
+  await run("O('vault').open(G)");   // blocked: nobody on plate
+  must((await state()).room === "heist", "vault opened with no power");
+  await run("G.party[1].x = 521;");  // stand Anders on the plate
+  await page.waitForTimeout(150);    // let tick() detect plateHeld
+  must(await page.evaluate(() => window.__MM.flag("plateHeld")), "plateHeld not detected");
+  const hf = await page.evaluate(() => {
     const f = window.__MM.state.flags;
-    return ["uvSeen", "cipherDone", "safeOpen", "gotLoot", "alarmOff", "leftValve", "rightValve"].filter((k) => f[k]);
+    return ["uvSeen", "cipherDone", "safeOpen", "gotLoot", "alarmOff"].filter((k) => f[k]);
   });
-  console.log("heist flags set:", JSON.stringify(flags));
-  must(flags.length === 7, "not all heist steps completed: " + flags.join(","));
-
+  must(hf.length === 5, "heist steps incomplete: " + hf.join(","));
   await run("O('vault').open(G)"); await ff(); await page.waitForTimeout(300); await ff();
   s = await state(); console.log("after heist:", JSON.stringify(s));
   must(s.room === "pub", "expected pub, got " + s.room);
   must(s.inv.includes("loot") && s.inv.includes("gold"), "loot/gold missing");
 
-  // ---- ÖLBACKEN ----
-  await run("O('keg').use(G)");
+  // ---- ÖLBACKEN: tab -> keg -> band -> food -> home ----
+  must((await page.evaluate(() => window.__MM.actors.length)) >= 4, "bench teammates not present at AW");
+  await run("O('keg').use(G)");                   // blocked: no tab
+  must(!(await page.evaluate(() => window.__MM.flag("kegTapped"))), "keg tapped without tab");
+  await run("O('tab').give.card(G)");             // open tab with company card
+  await run("O('keg').use(G)");                   // tap keg + get a beer
+  await run("O('band').give.beer(G)");            // live music
   await run("O('food').use(G)");
+  await run("O('crew').talk(G)");                 // good company (flavour)
+  const pf = await page.evaluate(() => {
+    const f = window.__MM.state.flags;
+    return ["tabOpen", "kegTapped", "musicOn", "ateFood"].filter((k) => f[k]);
+  });
+  must(pf.length === 4, "pub steps incomplete: " + pf.join(","));
   await run("O('home').open(G)"); await ff(); await page.waitForTimeout(300); await ff();
   await page.waitForFunction(() => window.__MM.scene === "end", null, { timeout: 6000 });
   s = await state(); console.log("FINAL:", JSON.stringify(s));
   must(s.scene === "end", "did not reach ending");
-  await page.waitForTimeout(700); // render ending to catch render errors
+  await page.waitForTimeout(700);
 
   console.log("\nSOLVE PATH: OK");
 } catch (e) {

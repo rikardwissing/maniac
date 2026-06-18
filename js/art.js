@@ -221,6 +221,30 @@ export const ICONS = {
     "   WooooooW     ","   WooooooW     ","   WWWWWWWW     ","    qqqqqq      ",
     "                ","                ","                ","                ",
   ],
+  cabkey: [   // small brass key (cabinet)
+    "                ","     yyyy       ","    yy  yy      ","    yy  yy      ",
+    "    yy  yy      ","     yyyy       ","      yy        ","      yy        ",
+    "      yy        ","      yyy       ","      yy        ","      yyy       ",
+    "      yy        ","                ","                ","                ",
+  ],
+  card: [    // corporate credit card
+    "                ","                ","  LLLLLLLLLLLL  ","  LkkkkkkkkkkL  ",
+    "  LkGGGGGGGGkL  ","  Lkyy kkkk kL  ","  Lkyy kkkk kL  ","  LkGGGGGGGGkL  ",
+    "  LkWWWWWWWWkL  ","  Lk88 88 88 L  ","  LLLLLLLLLLLL  ","                ",
+    "                ","                ","                ","                ",
+  ],
+  uvlight: [ // UV blacklight torch
+    "                ","        kkk     ","       kuuuk    ","      kupppuk   ",
+    "      kupppuk   ","       kkkkk    ","        kkk     ","        kkk     ",
+    "       kGGGk    ","       kGGGk    ","       kGGGk    ","       kkkkk    ",
+    "                ","                ","                ","                ",
+  ],
+  note: [
+    "                ","  yyyyyyyyyyyy  ","  yyyyyyyyyyyy  ","  yykkkkkkkyyy  ",
+    "  yyyyyyyyyyyy  ","  yykkkkkkkkyy  ","  yyyyyyyyyyyy  ","  yykkkkkyyyyy  ",
+    "  yyyyyyyyyyyy  ","  yykkkkkkkyyo  ","  yyyyyyyyyooo  ","  yyyyyyyyoooo  ",
+    "                ","                ","                ","                ",
+  ],
 };
 
 export function actorShadow(ctx, cx, cy, w, scale) {
@@ -282,8 +306,17 @@ export function paintOffice(ctx, t, st) {
     rect(ctx, dx + 24, 69, 20, 2, "#9fe8ff");
   }
 
-  // keycard lying on the first desk
-  if (!st.flags.tookCard) sprite(ctx, ICONS.keycard, 70, 66, { scale: 0.8 });
+  // supply cabinet (left) — locked; holds the keycard + corporate card
+  const cbx = 36, cby = 70;
+  rect(ctx, cbx, cby, 40, 50, "#3a4658"); frame(ctx, cbx, cby, 40, 50, "#566075");
+  rect(ctx, cbx + 3, cby + 3, 16, 44, "#2a3340"); rect(ctx, cbx + 21, cby + 3, 16, 44, "#2a3340");
+  if (st.flags.cabinetOpen) {
+    rect(ctx, cbx + 3, cby + 3, 34, 44, "#11161e");
+    if (!st.flags.tookCard) { sprite(ctx, ICONS.keycard, cbx + 4, cby + 8, { scale: 0.8 }); sprite(ctx, ICONS.card, cbx + 20, cby + 22, { scale: 0.8 }); }
+  } else {
+    rect(ctx, cbx + 18, cby + 22, 4, 6, "#f2d04a"); // lock + handles
+    rect(ctx, cbx + 12, cby + 24, 4, 2, "#c9a82f"); rect(ctx, cbx + 24, cby + 24, 4, 2, "#c9a82f");
+  }
 
   // exit door at far right (to the street)
   const dx = OFFICE_W - 44;
@@ -295,9 +328,11 @@ export function paintOffice(ctx, t, st) {
   rect(ctx, dx - 6, 67, 3, 3, st.flags.officeUnlocked ? "#46b85c" : "#d23b2b");
   textTiny(ctx, dx - 2, 30, "EXIT", "#9fe8ff");
 
-  // pot plant
-  rect(ctx, 120, 110, 14, 16, "#9a6233");
-  for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI; rect(ctx, (127 + Math.cos(a) * 6) | 0, (104 - Math.sin(a) * 9) | 0, 2, 9, "#2c8540"); }
+  // pot plant — a key glints in the soil until taken
+  rect(ctx, 120, 110, 16, 16, "#9a6233");
+  rect(ctx, 122, 112, 12, 5, "#3a2410");
+  for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI; rect(ctx, (128 + Math.cos(a) * 6) | 0, (105 - Math.sin(a) * 9) | 0, 2, 9, "#2c8540"); }
+  if (!st.flags.tookCabKey) { px(ctx, 126, 114, "#f2d04a"); px(ctx, 127, 114, "#fff4c0"); px(ctx, 128, 115, "#f2d04a"); }
 }
 
 // 2 — STREET to the venue. width 640. Bank/escape-room entrance at far right.
@@ -336,6 +371,16 @@ export function paintStreet(ctx, t, st) {
   rect(ctx, vx + 18, 60, 56, 20, "#15151d");
   textTiny(ctx, vx + 22, 66, "THE VAULT . ESCAPE", "#f2d04a");
   rect(ctx, vx + 40, 80, 16, 16, "#0a0c12"); // doorway
+  // buzzer keypad beside the door
+  rect(ctx, vx + 58, 80, 10, 14, "#15151d");
+  for (let r = 0; r < 3; r++) for (let c = 0; c < 2; c++) rect(ctx, vx + 60 + c * 4, 82 + r * 4, 3, 3, st.flags.venueOpen ? "#46b85c" : "#d23b2b");
+
+  // a noticeboard with tonight's bookings (read for the door code)
+  const nb = 360;
+  rect(ctx, nb, 50, 46, 30, "#5f3c1d"); frame(ctx, nb, 50, 46, 30, "#9a6233");
+  rect(ctx, nb + 4, 54, 38, 22, "#e8e2d0");
+  for (let i = 0; i < 4; i++) rect(ctx, nb + 7, 57 + i * 5, 26 - (i % 2) * 6, 1, "#2a2a30");
+  rect(ctx, nb + 18, 44, 2, 8, "#6a6a72"); // post
 
   // a parked tram/bus + bike rack for flavour
   for (let i = 0; i < 3; i++) bike(ctx, 150 + i * 26, 96, i === 1);
@@ -379,8 +424,11 @@ export function paintHeist(ctx, t, st) {
   if (st.flags.cipherDone) textTiny(ctx, cwx - 14, cwy - 2, "4 8 7 3", "#9fffb0");
   textTiny(ctx, cwx - 14, 78, "CIPHER", "#5a6678");
 
-  // --- Station 3: manager desk + ledger (x ~ 210) ---
+  // --- Station 3: manager desk + ledger + drawer (UV light) ---
   rect(ctx, 196, 84, 60, 8, "#5a3a1a"); rect(ctx, 200, 92, 6, 14, "#3a2410"); rect(ctx, 246, 92, 6, 14, "#3a2410");
+  rect(ctx, 210, 92, 32, 12, "#4a3018"); frame(ctx, 210, 92, 32, 12, "#6a4a28");
+  if (st.flags.drawerOpen) { rect(ctx, 212, 94, 28, 8, "#11141a"); if (!st.flags.tookUV) sprite(ctx, ICONS.uvlight, 216, 89, { scale: 0.7 }); }
+  else rect(ctx, 224, 96, 4, 2, "#c9a82f");
   sprite(ctx, ICONS.ledger, 214, 70, { scale: 0.9 });
 
   // --- Station 4: the SAFE / vault (x ~ 320) ---
@@ -399,6 +447,11 @@ export function paintHeist(ctx, t, st) {
   }
   textTiny(ctx, sx + 22, 30 - 0, "", "#000");
 
+  // toolbox between safe and alarm (holds wire cutters)
+  rect(ctx, 398, 82, 28, 16, "#9a2417"); frame(ctx, 398, 82, 28, 16, "#d23b2b");
+  rect(ctx, 408, 79, 8, 3, "#6a6a72");
+  if (st.flags.toolboxOpen) { rect(ctx, 400, 84, 24, 12, "#2a0f0c"); if (!st.flags.tookCutters) sprite(ctx, ICONS.wirecut, 402, 83, { scale: 0.7 }); }
+
   // --- Station 5: alarm panel (x ~ 430) ---
   const ax = 440;
   rect(ctx, ax, 40, 30, 34, "#1a1f28"); frame(ctx, ax, 40, 30, 34, st.flags.alarmOff ? "#46b85c" : "#d23b2b");
@@ -406,14 +459,12 @@ export function paintHeist(ctx, t, st) {
   rect(ctx, ax + 10, 44, 10, 3, st.flags.alarmOff ? "#46b85c" : "#d23b2b");
   textTiny(ctx, ax - 2, 76, "ALARM", "#5a6678");
 
-  // --- Station 6/7: two power valves (x ~ 500, 540) ---
-  for (const [vx, on, who] of [[500, st.flags.leftValve, "L"], [540, st.flags.rightValve, "R"]]) {
-    ctx.strokeStyle = on ? "#46b85c" : "#8a93a6"; ctx.lineWidth = 3;
-    ctx.beginPath(); ctx.arc(vx, 66, 10, 0, Math.PI * 2); ctx.stroke(); ctx.lineWidth = 1;
-    rect(ctx, vx - 1, 56, 2, 20, on ? "#46b85c" : "#6a7180");
-    rect(ctx, vx - 12, 78, 24, 4, "#2a2f3a");
-  }
-  textTiny(ctx, 502, 84, "PWR", "#5a6678");
+  // --- co-op pressure plate: someone must STAND here to power the vault ---
+  const plx = 496, plw = 50, held = st.flags.plateHeld;
+  rect(ctx, plx, 126, plw, 6, held ? "#2c8540" : "#2a3340");
+  frame(ctx, plx, 126, plw, 6, held ? "#9fffb0" : "#566075");
+  rect(ctx, plx + plw / 2 - 9, 122, 18, 4, held ? "#46b85c" : "#1c2330");
+  textTiny(ctx, plx + 6, 116, held ? "PWR ON" : "STAND HERE", held ? "#9fffb0" : "#5a6678");
 
   // --- the heavy EXIT vault door (far right) ---
   const ex = HEIST_W - 70;
@@ -426,50 +477,73 @@ export function paintHeist(ctx, t, st) {
     ctx.strokeStyle = "#6a7180"; ctx.lineWidth = 3;
     ctx.beginPath(); ctx.arc(ex + 33, 64, 15, 0, Math.PI * 2); ctx.stroke(); ctx.lineWidth = 1;
     for (let a = 0; a < 8; a++) { const an = a / 8 * Math.PI * 2; px(ctx, (ex + 33 + Math.cos(an) * 20) | 0, (64 + Math.sin(an) * 20) | 0, "#8a93a6"); }
-    // status leds: power + alarm
-    rect(ctx, ex + 8, 30, 4, 4, (st.flags.leftValve && st.flags.rightValve) ? "#46b85c" : "#d23b2b");
+    // status leds: power (plate held) + alarm
+    rect(ctx, ex + 8, 30, 4, 4, st.flags.plateHeld ? "#46b85c" : "#d23b2b");
     rect(ctx, ex + 54, 30, 4, 4, st.flags.alarmOff ? "#46b85c" : "#d23b2b");
   }
   textTiny(ctx, ex + 20, 14, "VAULT", "#c9a82f");
 }
 
-// 4 — ÖLBACKEN pub. width 480.
-export const PUB_W = 480;
+// 4 — ÖLBACKEN. width 560. The big one: bar + keg, stage/live music, food, company.
+export const PUB_W = 560;
 export function paintPub(ctx, t, st) {
-  vGradient(ctx, 0, 0, PUB_W, 96, "#3a2233", "#1c1018", 12);
+  vGradient(ctx, 0, 0, PUB_W, 100, st.flags.musicOn ? "#46243d" : "#3a2233", "#1c1018", 12);
   // string lights
-  for (let i = 0; i < 22; i++) {
+  for (let i = 0; i < 26; i++) {
     const x = 10 + i * 22, y = 10 + Math.sin(i * 0.9) * 4;
     rect(ctx, x, y | 0, 1, 6, "#5a4a2a");
     const cols = ["#f2d04a", "#46b85c", "#d23b2b", "#6db5d8"];
-    px(ctx, x, (y + 6) | 0, (Math.sin(t * 2 + i) * 0.5 + 0.5) > 0.3 ? cols[i % 4] : "#3a3020");
+    const on = st.flags.musicOn ? (Math.sin(t * 6 + i) * 0.5 + 0.5) > 0.25 : (Math.sin(t * 2 + i) * 0.5 + 0.5) > 0.3;
+    px(ctx, x, (y + 6) | 0, on ? cols[i % 4] : "#3a3020");
   }
-  // sign: ÖLBACKEN
-  rect(ctx, 150, 22, 110, 18, "#0c0f16"); frame(ctx, 150, 22, 110, 18, "#e8902f");
-  textTiny(ctx, 160, 28, "OLBACKEN . AW", "#f2d04a");
-  // shelves with bottles
-  rect(ctx, 16, 56, 150, 3, "#3a2a18"); rect(ctx, 16, 72, 150, 3, "#3a2a18");
-  for (let x = 20; x < 162; x += 9) { bottle(ctx, x, 44 + (x % 3) * 2, x); bottle(ctx, x, 60 + (x % 2) * 2, x + 5); }
-  // window to a Linköping night
-  rect(ctx, 300, 18, 80, 40, "#0a0c16");
-  for (let i = 0; i < 36; i++) px(ctx, 304 + (i * 53 % 72), 22 + (i * 37 % 32), "#ffe9a0");
+  // sign
+  rect(ctx, 36, 20, 120, 18, "#0c0f16"); frame(ctx, 36, 20, 120, 18, "#e8902f");
+  textTiny(ctx, 46, 26, "OLBACKEN . AW", "#f2d04a");
 
-  // bar counter (foreground)
-  vGradient(ctx, 0, 96, PUB_W, ROOM_H - 96, "#7a4d24", "#4a2c12", 8);
-  rect(ctx, 0, 96, PUB_W, 5, "#9a6233"); rect(ctx, 0, 101, PUB_W, 1, "#c9a06a");
+  // bottle shelves behind the bar (left)
+  rect(ctx, 12, 56, 150, 3, "#3a2a18"); rect(ctx, 12, 72, 150, 3, "#3a2a18");
+  for (let x = 16; x < 158; x += 9) { bottle(ctx, x, 44 + (x % 3) * 2, x); bottle(ctx, x, 60 + (x % 2) * 2, x + 5); }
 
-  // the KEG on the bar
-  if (!st.flags.kegTapped) sprite(ctx, ICONS.keg, 56, 70, { scale: 1.2 });
-  else { sprite(ctx, ICONS.keg, 56, 72, { scale: 1.0 }); for (let i = 0; i < 5; i++) glassMini(ctx, 90 + i * 22, 104); }
+  // window to a Linköping night (mid-back)
+  rect(ctx, 282, 16, 70, 34, "#0a0c16");
+  for (let i = 0; i < 28; i++) px(ctx, 286 + (i * 53 % 62), 20 + (i * 37 % 26), "#ffe9a0");
 
-  // food on a table to the right
-  rect(ctx, 250, 100, 60, 6, "#5a3a1a");
-  rect(ctx, 262, 96, 14, 5, st.flags.ateFood ? "#7a4d24" : "#d6d6d0");
-  if (!st.flags.ateFood) { rect(ctx, 264, 94, 10, 4, "#e8902f"); rect(ctx, 286, 96, 10, 4, "#46b85c"); }
+  // --- STAGE + live band (right) ---
+  const sgx = 392;
+  rect(ctx, sgx, 72, 160, 28, "#241018"); rect(ctx, sgx, 70, 160, 3, "#3a1c28");
+  if (st.flags.musicOn) { ctx.fillStyle = "rgba(255,210,120,0.13)"; ctx.beginPath(); ctx.moveTo(sgx + 80, 0); ctx.lineTo(sgx + 24, 100); ctx.lineTo(sgx + 136, 100); ctx.closePath(); ctx.fill(); }
+  rect(ctx, sgx + 8, 54, 18, 18, st.flags.musicOn ? "#2a2a30" : "#1a1a20"); rect(ctx, sgx + 11, 57, 12, 8, "#3a3a44"); px(ctx, sgx + 13, 59, st.flags.musicOn ? "#46b85c" : "#d23b2b");
+  // three musicians
+  const inst = ["#7a3b8f", "#3f7fb0", "#9a2417"];
+  for (let i = 0; i < 3; i++) { const bx = sgx + 44 + i * 36, bob = st.flags.musicOn ? Math.round(Math.sin(t * 6 + i) * 1.5) : 0; rect(ctx, bx, 50 + bob, 12, 22, inst[i]); rect(ctx, bx + 2, 43 + bob, 8, 7, "#e8b890"); rect(ctx, bx + 3, 40 + bob, 6, 4, "#3a2414"); }
+  if (st.flags.musicOn) for (let i = 0; i < 7; i++) { const nx = sgx + 24 + ((i * 47 + t * 46) % 130), ny = 42 - ((t * 32 + i * 18) % 38); px(ctx, nx | 0, ny | 0, "#f2d04a"); px(ctx, (nx + 1) | 0, (ny - 2) | 0, "#fff4c0"); }
+  textTiny(ctx, sgx + 64, 102, "LIVE", st.flags.musicOn ? "#f2d04a" : "#5a6678");
 
-  // pendant lamp glow
-  ctx.fillStyle = "rgba(255,210,120,0.10)";
-  ctx.beginPath(); ctx.moveTo(240, 0); ctx.lineTo(140, 120); ctx.lineTo(340, 120); ctx.closePath(); ctx.fill();
+  // --- tables for good company (centre) ---
+  for (const tx of [176, 250]) { rect(ctx, tx, 104, 42, 5, "#5a3a1a"); rect(ctx, tx + 4, 109, 4, 16, "#3a2410"); rect(ctx, tx + 34, 109, 4, 16, "#3a2410"); }
+  // food on the first table
+  rect(ctx, 182, 100, 18, 5, st.flags.ateFood ? "#5a3a1a" : "#d6d6d0");
+  if (!st.flags.ateFood) { rect(ctx, 184, 98, 10, 4, "#e8902f"); rect(ctx, 204, 100, 8, 4, "#46b85c"); }
+
+  // --- bar counter (foreground) + keg ---
+  vGradient(ctx, 0, 110, PUB_W, ROOM_H - 110, "#7a4d24", "#4a2c12", 8);
+  rect(ctx, 0, 110, PUB_W, 4, "#9a6233"); rect(ctx, 0, 114, PUB_W, 1, "#c9a06a");
+  if (!st.flags.kegTapped) sprite(ctx, ICONS.keg, 44, 78, { scale: 1.3 });
+  else { sprite(ctx, ICONS.keg, 44, 82, { scale: 1.0 }); for (let i = 0; i < 5; i++) glassMini(ctx, 78 + i * 18, 118); }
+  // tab board behind the bar
+  rect(ctx, 168, 54, 28, 18, "#0c0f16"); frame(ctx, 168, 54, 28, 18, st.flags.tabOpen ? "#46b85c" : "#5a3a1a");
+  textTiny(ctx, 172, 60, st.flags.tabOpen ? "TAB OK" : "PAY", st.flags.tabOpen ? "#9fffb0" : "#d23b2b");
+
+  ctx.fillStyle = "rgba(255,210,120,0.08)";
+  ctx.beginPath(); ctx.moveTo(110, 0); ctx.lineTo(30, 120); ctx.lineTo(210, 120); ctx.closePath(); ctx.fill();
+
+  // the way home (far right)
+  rect(ctx, 516, 40, 38, 70, "#241018"); frame(ctx, 516, 40, 38, 70, "#3a1c28");
+  rect(ctx, 520, 44, 30, 60, "#3a2a1a");
+  rect(ctx, 526, 48, 18, 22, "#0a0c16"); // night through the doorway window
+  for (let i = 0; i < 8; i++) px(ctx, 528 + (i * 31 % 14), 50 + (i * 17 % 18), "#ffe9a0");
+  rect(ctx, 522, 76, 4, 8, "#c9a06a");
+  textTiny(ctx, 522, 32, "HOME", "#e8902f");
 }
 
 /* ---------------------------- prop helpers ----------------------------- */
