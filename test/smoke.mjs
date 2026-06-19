@@ -76,6 +76,12 @@ try {
   must(!(await page.evaluate(() => !!window.__MM.primary)), "'Use' on an object wrongly waited for a second object");
   must(await page.evaluate(() => !!window.__MM.current || window.__MM.speech.length > 0), "'Use' on the machine produced no response");
   await ff();
+  // combining: a bare click on an inventory item arms it "in hand" for a Use
+  await run("O('mug').pickup(G)");
+  await page.mouse.click(rect.l + (223 / 320) * rect.w, rect.t + (157 / 200) * rect.h);   // the mug slot
+  await page.waitForTimeout(150);
+  must(await page.evaluate(() => window.__MM.primary && window.__MM.primary.id === "mug" && window.__MM.verb === "use"), "bare-clicking an item did not arm a Use combine");
+  await run("G.primary = null; G.verb = 'walkto';");   // reset; the fika below drives handlers directly
 
   // ---- OFFICE: brew a fika for Robin -> keycard; plant->cabinet->card ----
   await run("O('mug').pickup(G)");
