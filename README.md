@@ -36,9 +36,10 @@ Open `index.html` in any modern browser, or play the deployed build.
 - **Click a verb, then a thing** — or just click; a bare click does the
   sensible default. The sentence line previews the action ("Use the keg",
   "Talk to the host") before you commit.
-- **Use one thing on another** by clicking the **inventory item first**, then
-  its target ("Use mug with coffee machine"). A plain **Use** on a single
-  object just works — no second click required.
+- **Combine things:** click an **inventory item** to take it "in hand" (the
+  sentence line shows "Use mug with …"), then click its target — a thing in
+  the room, a person, or another item. A plain **Use** on a single object
+  just works; no second click required.
 - **Switch teammate:** press **1–3**, **Tab**, click a face up top, or click
   a teammate in the scene. The camera follows whoever you control.
 - **Talk to anyone.** Every NPC has a proper **branching dialogue tree** —

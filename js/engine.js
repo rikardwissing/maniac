@@ -590,14 +590,17 @@ function clickInventory(x, y) {
   const item = invAt(x, y);
   if (!item) return;
   const target = { id: item, name: G.items[item].name, obj: G.items[item] };
-  const verb = G.verb === "walkto" ? (G.items[item].defaultVerb || "look") : G.verb;
 
-  if (TWO_OBJECT[verb] && G.primary) {
-    if (G.primary.id === item) { G.primary = null; G.verb = "walkto"; sfx("verb"); return; } // re-click = deselect
-    const a = G.primary; G.primary = null; execTwo(verb, a, target); G.verb = "walkto"; return;
-  }
-  if (TWO_OBJECT[verb]) { G.primary = target; sfx("verb"); return; }   // begin "Use/Give this with…"
-  exec(verb, target, null); G.verb = "walkto";
+  // An explicit single-object verb (Look at / Open / …) just acts on the item.
+  if (G.verb !== "walkto" && !TWO_OBJECT[G.verb]) { exec(G.verb, target, null); G.verb = "walkto"; return; }
+
+  // Otherwise (re)select the item "in hand" for a combine. Click it again to
+  // drop it; a bare click defaults to a "Use … with …" command. Then click
+  // the target (a thing in the room, a person, or another item) to finish.
+  if (G.primary && G.primary.id === item) { G.primary = null; G.verb = "walkto"; sfx("verb"); return; }
+  G.primary = target;
+  if (!TWO_OBJECT[G.verb]) G.verb = "use";
+  sfx("verb");
 }
 
 function invAt(x, y) {
@@ -644,13 +647,15 @@ function exec(verbId, target, second) {
 }
 
 function execTwo(verbId, a, b) {
-  // a = item/object held, b = target
-  let handler = null, arg = null;
+  // a = the item held "in hand", b = the target (room object / person / item)
+  let handler = null;
   if (verbId === "use") {
-    if (b.obj.useWith && b.obj.useWith[a.id]) { handler = b.obj.useWith[a.id]; }
-    else if (a.obj.useWith && a.obj.useWith[b.id]) { handler = a.obj.useWith[b.id]; }
+    if (b.obj.useWith && b.obj.useWith[a.id]) handler = b.obj.useWith[a.id];
+    else if (a.obj.useWith && a.obj.useWith[b.id]) handler = a.obj.useWith[b.id];
+    else if (b.obj.give && typeof b.obj.give === "object" && b.obj.give[a.id]) handler = b.obj.give[a.id]; // "use X on a person" = give
   } else if (verbId === "give") {
     if (b.obj.give && typeof b.obj.give === "object" && b.obj.give[a.id]) handler = b.obj.give[a.id];
+    else if (b.obj.useWith && b.obj.useWith[a.id]) handler = b.obj.useWith[a.id];
   }
   if (handler) {
     const r = handler(G);
