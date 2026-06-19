@@ -51,11 +51,31 @@ const run = (expr) => page.evaluate((e) => {
 const state = () => page.evaluate(() => ({ scene: window.__MM.scene, room: window.__MM.state.room, inv: window.__MM.state.inventory.slice() }));
 const flag = (f) => page.evaluate((x) => window.__MM.flag(x), f);
 const must = (c, m) => { if (!c) throw new Error(m); };
+// pick an option from a branching conversation by matching its label
+const dialogPick = async (re) => {
+  await ff();                        // clear the NPC's line so the menu appears
+  await page.waitForTimeout(150);    // let updateDialog show the option menu
+  await page.evaluate((r) => {
+    const G = window.__MM;
+    if (!G.choices) throw new Error("no dialogue menu open for /" + r + "/");
+    const o = G.choices.list.find((x) => new RegExp(r, "i").test(x.text));
+    if (!o) throw new Error("no choice /" + r + "/ in " + JSON.stringify(G.choices.list.map((x) => x.text)));
+    o.fn(G);
+  }, re);
+};
 
 try {
   await ff();
   let s = await state(); console.log("start:", JSON.stringify(s));
   must(s.room === "office", "expected office, got " + s.room);
+
+  // ---- interaction polish: "Use" acts on ONE object (no forced combine) ----
+  await run("G.verb='use'");
+  await page.mouse.click(rect.l + (118 / 320) * rect.w, rect.t + (70 / 200) * rect.h);  // the coffee machine
+  await page.waitForTimeout(1500);
+  must(!(await page.evaluate(() => !!window.__MM.primary)), "'Use' on an object wrongly waited for a second object");
+  must(await page.evaluate(() => !!window.__MM.current || window.__MM.speech.length > 0), "'Use' on the machine produced no response");
+  await ff();
 
   // ---- OFFICE: brew a fika for Robin -> keycard; plant->cabinet->card ----
   await run("O('mug').pickup(G)");
@@ -71,8 +91,18 @@ try {
 
   // ---- STREET: helmet, host, then the BIKE MINI-GAME to The Vault ----
   await run("O('helmet').pickup(G)");
+  // talk to a squadmate: branching menu with a contextual hint (MM-style)
+  await run("G.converse(G.mateDialog(G, G.party[1]))");
+  await dialogPick("What should we do");
+  await ff();
+  await run("if (G.dialog) G.endConverse();");
+  must(!(await page.evaluate(() => !!window.__MM.dialog)), "teammate dialogue didn't close");
   await run("O('board').look(G)");
-  await run("O('host').talk(G)"); await run("G.choices.list[0].fn(G)");
+  // branching dialogue: tell the host we're Teamtailor to get cleared
+  await run("O('host').talk(G)");
+  await dialogPick("Teamtailor");
+  await ff();
+  must(await flag("venueOpen"), "venueOpen not set after host dialogue");
   await run("O('bikes').use(G)");                  // enters bike mini-game
   must((await page.evaluate(() => window.__MM.scene)) === "bike", "bike mini-game didn't start");
   await finishBike();
@@ -111,7 +141,9 @@ try {
   // ---- CONTROL ROOM ----
   await run("O('mirror').pickup(G)"); await run("O('lasers').use(G)");
   await run("O('lever').use(G)"); await run("O('prototype').pickup(G)"); await run("O('evidence').pickup(G)");
-  await run("O('curator').talk(G)"); await ff();
+  await run("O('curator').talk(G)");
+  await dialogPick("over");                         // "It's over, Curator. Hands up."
+  await ff();
   must(await flag("curatorFled"), "curator didn't flee");
   await run("O('stairs').use(G)"); await ff(); await page.waitForTimeout(200); await ff();
   must((await state()).room === "roof", "expected roof");

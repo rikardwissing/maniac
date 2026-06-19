@@ -6,7 +6,9 @@ import {
   paintOffice, paintStreet, paintHeist, paintPub, paintBikeCard, paintTitleCard,
   paintControl, paintRoof, paintCathedral,
   OFFICE_W, STREET_W, HEIST_W, PUB_W, CONTROL_W, ROOF_W, CATH_W,
+  TEAM,
 } from "./art.js";
+const nameOf = (id) => (TEAM.find((m) => m.id === id) || {}).name || id;
 import { sfx } from "./audio.js";
 
 const is = (G, id) => G.player && G.player.id === id;   // is the active member X?
@@ -81,10 +83,7 @@ export const rooms = {
         pickup: (G) => { G.addItem("bun"); G.setFlag("tookBun"); return "A cinnamon bun. Never adventure without one."; } },
       { id: "robin", name: "Robin", x: 270, y: 92, w: 32, h: 42, walkTo: { x: 268, y: 122 }, defaultVerb: "talk",
         look: () => "Robin, night-shift dev, guarding the keycard and running on fumes.",
-        talk: (G) => {
-          if (G.has("keycard") || G.flag("gaveFika")) { G.say("robin", "Go get 'em. Bring me something stronger than coffee later."); return; }
-          G.say("robin", "No fika, no keycard. Coffee AND a bun, tack.");
-        },
+        talk: (G) => G.converse(robinTree(G)),
         give: {
           coffee: (G) => { G.removeItem("coffee"); G.setFlag("gaveCoffee"); return finishFika(G, "robin", "Coffee! Halfway to a proper fika..."); },
           bun: (G) => { G.removeItem("bun"); G.setFlag("gaveBun"); return finishFika(G, "robin", "A kanelbulle! Now if only there were coffee..."); },
@@ -122,7 +121,7 @@ export const rooms = {
   street: {
     name: "Downtown Linköping",
     width: STREET_W, paint: paintStreet, music: "street",
-    objective: "The hub. Read the board, tell the host you're Teamtailor, and get into The Vault.",
+    objective: "Downtown — all walkable. Read the board, get cleared by the host, then bike across town to The Vault.",
     start: { x: 70, y: 122, dir: "right" },
     walk: { minX: 16, maxX: 744, minY: 104, maxY: 132, scaleMin: 1.2, scaleMax: 1.8 },
     onEnter: (G) => {
@@ -136,20 +135,21 @@ export const rooms = {
     },
     barks: ["Smells like Friday.", "Race you to the door.", ["busker", "Spare a krona for a tune?"]],
     actors: [
-      { id: "host", skin: "host", accessory: "bowtie", x: 706, y: 120, dir: "left", speechColor: "#e88aa0" },
-      { id: "busker", skin: "busker", accessory: "beanie", x: 250, y: 118, dir: "front", speechColor: "#c89fff" },
+      { id: "host", skin: "host", accessory: "bowtie", x: 706, y: 120, dir: "left", speechColor: "#e88aa0", name: "the host" },
+      { id: "busker", skin: "busker", accessory: "beanie", x: 250, y: 118, dir: "front", speechColor: "#c89fff", name: "the busker" },
+      { id: "vendor", skin: "bartend", accessory: "apron", x: 150, y: 118, dir: "right", speechColor: "#ffd27f", name: "the kiosk vendor" },
     ],
     objects: [
       { id: "office", name: "office door", x: 36, y: 44, w: 32, h: 38, walkTo: { x: 56, y: 122 }, defaultVerb: "use",
         look: () => "Back up to the Teamtailor office.",
-        use: (G) => G.gotoRoom("office", { at: { x: 406, y: 122, dir: "left" } }) },
+        use: (G) => G.gotoRoom("office", { at: { x: 300, y: 122, dir: "left" } }) },
       { id: "kiosk", name: "the Cloetta kiosk", x: 172, y: 44, w: 52, h: 40, walkTo: { x: 198, y: 122 }, defaultVerb: "use",
         look: () => "A Cloetta kiosk — chocolate made right here in Linköping.",
         use: (G) => { if (G.has("choklad")) return "Got a bar already."; G.addItem("choklad"); sfx("coin"); return "The vendor tosses me a Cloetta bar. 'On the house — go rob that bank!'"; },
-        talk: (G) => G.say("player", "The kiosk vendor swears Linköping dark chocolate solves most problems.") },
+        talk: (G) => G.converse(vendorTree(G)) },
       { id: "busker", name: "the busker", x: 236, y: 92, w: 32, h: 42, walkTo: { x: 250, y: 122 }, defaultVerb: "talk",
         look: () => "A street busker in a green beanie, strumming for coins.",
-        talk: (G) => G.say("busker", G.flag("knowPin") ? "Code's on the board, ja — I busk to it nightly." : "Lost? Tonight's door codes are on the board down the street.") },
+        talk: (G) => G.converse(buskerTree(G)) },
       { id: "helmet", name: "bike helmet", x: 258, y: 78, w: 22, h: 18, walkTo: { x: 266, y: 122 }, defaultVerb: "pickup",
         visible: (G) => !G.flag("tookHelmet"),
         look: () => "A helmet on the rack by the bikes.",
@@ -165,21 +165,12 @@ export const rooms = {
         use: (G) => G.gotoRoom("pub", { at: { x: 60, y: 120, dir: "right" } }) },
       { id: "board", name: "noticeboard", x: 590, y: 50, w: 46, h: 30, walkTo: { x: 600, y: 122 }, defaultVerb: "look",
         look: (G) => { G.setFlag("knowPin"); return ["Tonight's bookings:", "'Teamtailor — 17:00 — door code 2013.'", "(The year we were founded. Cute.)"]; } },
-      { id: "venue", name: "The Vault booth", x: 660, y: 34, w: 90, h: 62, walkTo: { x: 700, y: 122 }, defaultVerb: "use",
-        look: () => "The host's booth. The Vault itself is across town — we bike there.",
-        use: (G) => rideToVault(G) },
+      { id: "venue", name: "the booking booth", x: 660, y: 34, w: 90, h: 62, walkTo: { x: 700, y: 122 }, defaultVerb: "look",
+        look: () => "The host's booking booth. The Vault itself is across town — we bike there.",
+        use: (G) => G.flag("venueOpen") ? "We're cleared — grab the bikes and ride across town." : "I should talk to the host to get our booking first." },
       { id: "host", name: "the host", x: 690, y: 92, w: 36, h: 42, walkTo: { x: 686, y: 122 }, defaultVerb: "talk",
         look: () => "The escape-room Game Master, bow tie and clipboard.",
-        talk: (G) => {
-          if (G.flag("venueOpen")) { G.say("host", "Back again? The room's all yours — mind the clock!"); return; }
-          if (!G.flag("knowPin")) { G.say("host", "Evening! Which team are you? The board's down the street if you've forgotten."); return; }
-          G.say("host", "Evening! And which team do we have here?");
-          G.choose("Tell the host:", [
-            { text: "Teamtailor", fn: (g) => { g.setFlag("venueOpen"); g.say("host", "You're in — 17:00 slot! Bike over when ready; helmets on the rack, safety first."); } },
-            { text: "Spotify", fn: (g) => { sfx("error"); g.say("host", "Ha! Wrong building, friend."); } },
-            { text: "...the bank robbers?", fn: (g) => { g.say("host", "Aren't we all tonight. The booking name?"); } },
-          ]);
-        } },
+        talk: (G) => G.converse(hostTree(G)) },
     ],
   },
 
@@ -285,14 +276,9 @@ export const rooms = {
         walkTo: { x: 432, y: 124 }, defaultVerb: "talk",
         visible: (G) => !G.flag("guardDistracted"),
         look: () => "A bank guard, arms crossed, planted in front of the alarm panel.",
-        talk: (G) => { G.setFlag("needChoklad"); G.say("guard", "Nothing gets past me. Especially not that alarm. ...is that chocolate I smell? No? Move along."); },
-        give: { choklad: (G) => {
-          G.removeItem("choklad"); G.setFlag("guardDistracted"); sfx("coin");
-          const g = G.actors.find((a) => a.id === "guard"); if (g) g.target = { x: 330, y: 124 };
-          G.say("guard", "...is that Cloetta? Don't mind if I do.");
-          return "The guard pockets the chocolate and ambles off — the alarm's clear!";
-        } },
-        useWith: { choklad: (G) => rooms.heist.objects.find((o) => o.id === "guard").give.choklad(G) },
+        talk: (G) => { G.setFlag("needChoklad"); G.converse(guardTree(G)); },
+        give: { choklad: (G) => { distractGuard(G); } },
+        useWith: { choklad: (G) => { distractGuard(G); } },
       },
       {
         id: "safe", name: "the safe", x: 300, y: 30, w: 70, h: 64,
@@ -410,24 +396,7 @@ export const rooms = {
       { id: "curator", name: "The Curator", x: 182, y: 92, w: 36, h: 42, walkTo: { x: 170, y: 124 }, defaultVerb: "talk",
         visible: (G) => !G.flag("curatorFled"),
         look: () => "The Curator: red goggles, black coat, infinite smugness.",
-        talk: (G) => {
-          if (G.flag("powerCut") && G.flag("tookEvidence") && G.flag("tookPrototype")) {
-            G.setFlag("curatorFled");
-            G.cutscene([
-              { say: ["curator", "NO! My beautiful data — years of harvesting!"] },
-              { say: ["curator", "Stopped by a PRODUCT team? I'll be gone before the police— the ROOF!"] },
-              { do: (g) => { g.actors = g.actors.filter((a) => a.id !== "curator"); } },
-              { say: ["player", "He's bolting for the roof. After him!"] },
-            ]);
-            return;
-          }
-          G.say("curator", "Welcome to my collection. Every 'team-building' booking donates its secrets — willingly!");
-          G.choose("Say to The Curator:", [
-            { text: "So that's it — you steal data?", fn: (g) => g.say("curator", "Decades of it. Your Aurora uploads as we speak. Do enjoy the room.") },
-            { text: "Give it up, Curator.", fn: (g) => g.say("curator", "Cut my power and take my ledger first — then we'll talk.") },
-            { text: "(keep working)", fn: () => {} },
-          ]);
-        } },
+        talk: (G) => G.converse(curatorTree(G)) },
       { id: "stairs", name: "stairs up", x: CONTROL_W - 46, y: 30, w: 46, h: 70, walkTo: { x: CONTROL_W - 30, y: 124 }, defaultVerb: "use",
         look: () => "A spiral stair up to the roof.",
         use: (G) => { if (!G.flag("curatorFled")) { sfx("error"); return "He'll only run up here once he's cornered — cut his operation first."; } return goRoof(G); } },
@@ -468,7 +437,14 @@ export const rooms = {
       { id: "curator", name: "The Curator", x: 326, y: 92, w: 36, h: 42, walkTo: { x: 314, y: 124 }, defaultVerb: "talk",
         visible: (G) => !G.flag("curatorCaught"),
         look: () => "The Curator, eyeing his drone and the long drop.",
-        talk: (G) => G.say("curator", G.flag("tetherCut") ? "No! That drive was my retirement!" : "Stay back! That drone's my ticket out!") },
+        talk: (G) => G.converse({
+          speaker: "curator",
+          greeting: [["curator", G.flag("tetherCut") ? "No! That drive was my retirement!" : "Stay back! That drone's my ticket out!"]],
+          nodes: { root: { options: [
+            { text: "Nowhere left to run.", say: [["curator", "There is always a contingency. ...usually."]] },
+            { text: "We've got your evidence.", say: [["curator", "That folder was insured. Probably. Possibly. ...drat."]] },
+          ], leaveText: "(keep him cornered)", leaveSay: [["player", "Easy. The police are already on their way up."]] } },
+        }) },
       { id: "door", name: "the way down", x: 8, y: 70, w: 26, h: 28, walkTo: { x: 30, y: 124 }, defaultVerb: "use",
         look: () => "The stairwell back down — and on to AW, if we ever finish up here.",
         use: (G) => G.flag("tookMaster") ? toPub(G) : "Not without that master drive." },
@@ -533,7 +509,7 @@ export const rooms = {
         id: "bartend", name: "the bartender", x: 104, y: 92, w: 34, h: 40,
         walkTo: { x: 132, y: 120 }, defaultVerb: "talk",
         look: () => "The bartender, apron on, towel over the shoulder, ready to pour.",
-        talk: (G) => G.say("bartend", G.flag("tabOpen") ? "Tab's running — keg, kitchen and the band are all yours. Skål!" : "Welcome to Ölbacken! Open a tab — hand me a card and the night's yours."),
+        talk: (G) => G.converse(bartenderTree(G)),
         give: { card: (G) => openTab(G) },
       },
       {
@@ -551,9 +527,9 @@ export const rooms = {
         id: "band", name: "the band", x: 436, y: 40, w: 116, h: 30,
         walkTo: { x: 474, y: 120 }, defaultVerb: "talk",
         look: (G) => G.flag("musicOn") ? "The band's tearing through a set. The room's alive." : "A live band, set up but idle. They eye the bar.",
-        talk: (G) => G.flag("musicOn") ? G.say("band", "Tack Linköping! This one's for the bank robbers!") : G.say("band", "Buy us a beer and we'll play all night."),
-        give: { beer: (G) => { if (G.flag("musicOn")) return "They've already got drinks."; G.setFlag("musicOn"); G.removeItem("beer"); sfx("band"); G.say("band", "TACK! Linköping, are you ready?!"); return "I hand a beer to the guitarist — the set kicks off!"; } },
-        useWith: { beer: (G) => { if (G.flag("musicOn")) return "They're sorted."; G.setFlag("musicOn"); G.removeItem("beer"); sfx("win"); return "Beer delivered — the band launches into it!"; } },
+        talk: (G) => G.converse(bandTree(G)),
+        give: { beer: (G) => { if (G.flag("musicOn")) return "They've already got drinks."; bandGive(G); } },
+        useWith: { beer: (G) => { if (G.flag("musicOn")) return "They're sorted."; bandGive(G); } },
       },
       {
         id: "food", name: "the food", x: 178, y: 90, w: 44, h: 18,
@@ -569,7 +545,7 @@ export const rooms = {
         id: "crew", name: "the crew", x: 196, y: 100, w: 170, h: 32,
         walkTo: { x: 250, y: 122 }, defaultVerb: "talk",
         look: () => "The rest of the Linköping crew, mid-story and grinning.",
-        talk: (G) => crewTalk(G),
+        talk: (G) => G.converse(crewTree(G)),
       },
       {
         id: "chug", name: "the chug contest", x: 374, y: 96, w: 42, h: 26,
@@ -613,13 +589,196 @@ const CREW_LINES = [
   ["rikard", "Got the whole thing on my phone. Mostly the ceiling."],
   ["oskar", "If you're ever stuck, you know who to ping."],
 ];
-function crewTalk(G) {
-  const n = (G.state.flags.crewLine || 0) % CREW_LINES.length;
-  G.setFlag("crewLine", n + 1);
-  const [who, line] = CREW_LINES[n];
-  // speak as that teammate if they're present, else as the active player
-  const present = G.actors.some((a) => a.id === who) || G.party.some((p) => p.id === who);
-  G.say(present ? who : "player", line);
+
+/* ======================================================= dialogue trees == */
+// Branching, looping conversations (see G.converse in the engine).
+
+function robinTree(G) {
+  const done = G.has("keycard") || G.flag("gaveFika");
+  return {
+    speaker: "robin",
+    greeting: done
+      ? [["robin", "You're a lifesaver. Go get 'em — bring me something stronger than coffee later."]]
+      : [["robin", "No fika, no keycard. That's the deal. Coffee AND a bun, tack."]],
+    nodes: { root: { options: [
+      { when: () => !done, text: "What exactly do you want?", say: [["robin", "A proper fika. Brew a coffee at the machine, grab the kanelbulle off the table, hand me both."]] },
+      { text: "Any news before we head out?", say: [["robin", "That monitor pinged an anonymous tip: our escape room's a data-heist front. 'The Curator' is after Aurora. Watch yourselves."]] },
+      { text: "You look wrecked.", say: [["robin", "Third night shift this week. The bug won't fix itself... the coffee helps, mind."]] },
+      { when: () => done, text: "We're off — skål later?", end: true, say: [["robin", "Save me a seat at Ölbacken. Go!"]] },
+    ], leaveText: "Back in a bit.", leaveSay: [["robin", "Mm. Coffee."]] } },
+  };
+}
+
+function hostTree(G) {
+  const open = G.flag("venueOpen");
+  return {
+    speaker: "host",
+    greeting: open ? [["host", "Back already? Your room's across town and waiting — mind the clock!"]]
+      : !G.flag("knowPin") ? [["host", "Evening! Which team are you? Tonight's bookings are on the board down the street."]]
+        : [["host", "Evening! And which team do we have here?"]],
+    nodes: { root: { options: [
+      { when: () => !open && G.flag("knowPin"), text: "We're Teamtailor.", end: true,
+        do: (g) => { g.setFlag("venueOpen"); },
+        say: [["host", "You're in — 17:00 slot! The Vault's across town: grab a bike from the rack, helmet on. Safety first!"]] },
+      { when: () => !open && G.flag("knowPin"), text: "...the bank robbers?", say: [["host", "Aren't we all tonight. The booking name, please."]] },
+      { when: () => !open && !G.flag("knowPin"), text: "Where are the bookings again?", say: [["host", "The noticeboard, just down the street. Have a read and pop back."]] },
+      { text: "Tell me about the room.", say: [["host", "'The Vault' — our flagship. Ninety real minutes, real locks. Most teams donate more than they bargained for..."]] },
+      { text: "Who owns this place?", say: [["host", "The Curator. Keeps to himself, pays cash, runs it from some back room. I just take bookings."]] },
+      { when: () => open, text: "We're heading over.", end: true, say: [["host", "Bikes are by the rack. Skål when you're out — IF you get out!"]] },
+    ], leaveText: "Later.", leaveSay: [["host", "Mind the clock!"]] } },
+  };
+}
+
+function buskerTree(G) {
+  return {
+    speaker: "busker",
+    greeting: [["busker", "Spare a krona for a tune?"]],
+    nodes: { root: { options: [
+      { text: "Heard anything useful?", say: () => [["busker", G.flag("knowPin") ? "Tonight's codes? On the board, ja. I busk to 'em nightly." : "Door codes are posted on the board down the street. Always are."]] },
+      { text: "Play us something.", say: [["busker", "After your heist, friend. I only jam for winners. There's a proper band at Ölbacken tonight, mind."]] },
+      { text: "Nice beanie.", say: [["busker", "Hand-knitted. Keeps the riffs warm."]] },
+    ], leaveText: "Keep strumming.", leaveSay: [["busker", "Skål!"]] } },
+  };
+}
+
+function vendorTree(G) {
+  return {
+    speaker: "vendor",
+    greeting: [["vendor", "Cloetta? Made right here in Linköping. Best in Sweden, no debate."]],
+    nodes: { root: { options: [
+      { when: () => !G.has("choklad"), text: "Can I grab a bar?", do: (g) => { g.addItem("choklad"); sfx("coin"); }, say: [["vendor", "On the house — go rob that bank!"]] },
+      { when: () => G.has("choklad"), text: "Thanks for the bar.", say: [["vendor", "Save a square for the guard — sweet tooth, that one. Works every time."]] },
+      { text: "What's good?", say: [["vendor", "The dark chocolate solves most problems. Bribery very much included."]] },
+    ], leaveText: "See you.", leaveSay: [["vendor", "Hej då!"]] } },
+  };
+}
+
+function guardTree(G) {
+  const distracted = G.flag("guardDistracted");
+  return {
+    speaker: "guard",
+    greeting: distracted ? [["guard", "...mmf. Good chocolate. Carry on."]]
+      : [["guard", "Nothing gets past me. Especially not that alarm."]],
+    nodes: { root: { options: [
+      { when: () => G.has("choklad") && !distracted, text: "(offer the Cloetta bar)", do: (g) => { g.endConverse(); distractGuard(g); } },
+      { when: () => !distracted, text: "What are you guarding?", say: [["guard", "That alarm panel. Touch it and the whole block lights up. So don't."]] },
+      { when: () => !distracted, text: "Long shift?", say: [["guard", "Endless. ...is that chocolate I smell? No? Pity. A man gets peckish guarding a vault."]] },
+      { when: () => distracted, text: "Enjoying that?", say: [["guard", "Don't tell the manager. Mmf."]] },
+    ], leaveText: "Carry on.", leaveSay: [["guard", "Move along."]] } },
+  };
+}
+
+function curatorTree(G) {
+  const ready = () => G.flag("powerCut") && G.flag("tookEvidence") && G.flag("tookPrototype");
+  return {
+    speaker: "curator",
+    greeting: [["curator", "Welcome to my collection. Every 'team-building' booking donates its secrets — willingly!"]],
+    nodes: { root: { options: [
+      { when: ready, text: "It's over, Curator. Hands up.", do: (g) => { g.endConverse(); triggerCuratorFlee(g); } },
+      { text: "Why steal data?", say: [["curator", "Information is the only currency that matters. Yours was simply... unguarded."]] },
+      { text: "Those are OUR dashboards.", say: [["curator", "And your roadmap. And your prototype. Aurora uploads as we speak. Do enjoy the room."]] },
+      { when: () => !ready(), text: "Give it up.", say: [["curator", "Cut my power and lift my ledger first — then we'll talk. You won't."]] },
+      { when: () => !ready(), text: "(get back to work)", end: true, say: [["player", "Keep him talking — I'll dismantle his operation first."]] },
+    ], leaveText: "(step away)", leaveSay: [["curator", "Run along."]] } },
+  };
+}
+
+function bartenderTree(G) {
+  const open = G.flag("tabOpen");
+  return {
+    speaker: "bartend",
+    greeting: open ? [["bartend", "Tab's running — keg, kitchen and the band are all yours. Skål!"]]
+      : [["bartend", "Welcome to Ölbacken! Open a tab — hand me a card and the night's yours."]],
+    nodes: { root: { options: [
+      { when: () => G.has("card") && !open, text: "Open a tab. (company card)", do: (g) => { g.endConverse(); openTab(g); g.say("bartend", "On the company? Lovely. Keg, kitchen and stage — all yours."); } },
+      { text: "What's on tap?", say: [["bartend", "Your very own keg, plus the usual taps. That keg won't pour itself, mind."]] },
+      { text: "Recommendations?", say: [["bartend", "Burgers from the kitchen, and tip the band a beer — they'll play all night."]] },
+    ], leaveText: "Cheers.", leaveSay: [["bartend", "Skål!"]] } },
+  };
+}
+
+function bandTree(G) {
+  const on = G.flag("musicOn");
+  return {
+    speaker: "band",
+    greeting: on ? [["band", "Tack Linköping! This one's for the bank robbers!"]]
+      : [["band", "Buy us a beer and we'll play all night."]],
+    nodes: { root: { options: [
+      { when: () => G.has("beer") && !on, text: "Here — a round for the band.", do: (g) => { g.endConverse(); bandGive(g); } },
+      { text: "What do you play?", say: [["band", "Loud, fast and a little bit Swedish. You'll like it."]] },
+      { when: () => on, text: "Sounds great!", say: [["band", "Stick around — we take requests after the chug contest!"]] },
+    ], leaveText: "Rock on.", leaveSay: [["band", "Skål!"]] } },
+  };
+}
+
+function crewTree(G) {
+  const present = (id) => G.actors.some((a) => a.id === id) || G.party.some((p) => p.id === id);
+  const options = CREW_LINES.filter(([id]) => present(id)).map(([id, line]) => ({
+    text: nameOf(id) + " — how'd it go in there?",
+    say: [[id, line]],
+  }));
+  options.push({ text: "Skål, everyone!", do: () => sfx("band"), say: [["player", "Skål! To the Linköping crew — and to never trusting an escape room again!"]] });
+  return { speaker: "player", greeting: [["player", "So — war stories?"]], nodes: { root: { options, leaveText: "Back to it.", leaveSay: [["player", "Haha — another round!"]] } } };
+}
+
+/* talk-to-teammate: banter + a contextual hint + the objective, MM-style.
+   Picked up by the engine via content.mateDialog (Talk-to verb on a squadmate). */
+const MATE_BANTER = {
+  jonas: ["Platform's got your back — point me at the heavy stuff.", "If it's locked and big, that's my department."],
+  anders: ["I'll crank whatever needs cranking.", "Two platform devs, one heist. We're golden."],
+  emil: ["Never lost an escape room. Not starting tonight.", "Hand me a cipher and watch me grin."],
+  rikard: ["Phone's charged — torch, camera, the works.", "Filming this for the retro. Smile."],
+  oskar: ["Stuck? Literally my job. Press H any time.", "I autocomplete your next move."],
+  caroline: ["Show me a safe and I'll close the month on it.", "The loot's already balanced, by the way."],
+  per: ["Any alarm in here is just one unpatched box.", "Lasers, wires — all of it is bad security."],
+};
+const MATE_GREETING = {
+  jonas: "What's the plan, chef?", anders: "Need the muscle?", emil: "Talk to me.",
+  rikard: "You rang?", oskar: "Need a nudge?", caroline: "Yes? The books are fine.", per: "Sup. Threat model?",
+};
+export function mateDialog(G, mate) {
+  const room = G.rooms[G.state.room];
+  const hint = () => (room && room.hint ? room.hint(G) : "We're in good shape — onward to AW.");
+  const objective = () => { const o = room && (typeof room.objective === "function" ? room.objective(G) : room.objective); return o || "Stick together and have a good night."; };
+  const banter = MATE_BANTER[mate.id] || ["Right behind you."];
+  return {
+    speaker: mate.id,
+    greeting: [[mate.id, MATE_GREETING[mate.id] || "What's up?"]],
+    nodes: { root: { prompt: "Ask " + mate.name + ":", options: [
+      { text: "What should we do now?", say: () => [[mate.id, hint()]] },
+      { text: "Remind me of the objective.", say: () => [[mate.id, objective()]] },
+      { text: "How are you holding up?", say: () => [[mate.id, banter[(Math.random() * banter.length) | 0]]] },
+      { text: "Take over — you lead.", end: true, do: (g) => g.switchTo(mate.id), say: [[mate.id, "On it. Follow me."]] },
+    ], leaveText: "Never mind.", leaveSay: [[mate.id, "Shout if you need me."]] } },
+  };
+}
+
+// guard: chocolate bribe clears the alarm (shared by talk/give/use)
+function distractGuard(G) {
+  if (G.flag("guardDistracted")) return;
+  G.removeItem("choklad"); G.setFlag("guardDistracted"); sfx("coin");
+  const g = G.actors.find((a) => a.id === "guard"); if (g) g.target = { x: 330, y: 124 };
+  G.say("guard", "...is that Cloetta? Don't mind if I do.");
+  G.say("player", "The guard pockets the chocolate and ambles off — the alarm's clear!");
+}
+
+// band: a beer starts the live music (shared by talk/give/use)
+function bandGive(G) {
+  if (G.flag("musicOn")) return;
+  G.setFlag("musicOn"); G.removeItem("beer"); sfx("band");
+  G.say("band", "TACK! Linköping, are you ready?!");
+  G.say("player", "I hand a beer to the guitarist — the set kicks off!");
+}
+
+// control room: confront The Curator once his operation's dismantled
+function triggerCuratorFlee(G) {
+  G.setFlag("curatorFled");
+  G.cutscene([
+    { say: ["curator", "NO! My beautiful data — years of harvesting!"] },
+    { say: ["curator", "Stopped by a PRODUCT team? I'll be gone before the police— the ROOF!"] },
+    { do: (g) => { g.actors = g.actors.filter((a) => a.id !== "curator"); } },
+    { say: ["player", "He's bolting for the roof. After him!"] },
+  ]);
 }
 
 // fika puzzle: hand over coffee + bun, then Robin gives the keycard

@@ -56,6 +56,8 @@ export const G = {
   speech: [],                      // queue of {actorId,text,until,color}
   current: null,
   choices: null,                   // {prompt, list:[{text,fn}]}
+  dialog: null,                    // branching conversation runner
+  mateDialog: null,                // builder for talk-to-teammate trees
   cs: null,                        // cutscene runner
   fade: 0, fadeDir: 0, fadeCb: null,
   t: 0, last: 0,
@@ -77,6 +79,7 @@ export function boot(canvas, content) {
   G.rooms = content.rooms;
   G.items = content.items;
   G.onWin = content.onWin;
+  G.mateDialog = content.mateDialog || null;   // teammate conversation builder
   G.state = {
     room: null,
     inventory: [],
@@ -442,7 +445,13 @@ function onKey(e) {
     else if (e.key === "Escape") bikeFinish();
     return;
   }
-  if (e.key === "Escape" && G.choices) { G.choices = null; return; }
+  // dialogue / choice menu: number keys pick, Esc bows out
+  if (G.choices) {
+    if (e.key === "Escape") { if (G.dialog) endDialog(); else G.choices = null; return; }
+    if (e.key >= "1" && e.key <= "9") { selectChoice(+e.key - 1); }
+    return;
+  }
+  if (G.dialog) { if (e.key === "Escape") endDialog(); return; } // mid-response
   if (G.scene !== "play" || G.cs) return;
   if (e.key >= "1" && e.key <= "9") { const i = +e.key - 1; if (i < G.party.length) G.switchTo(i); }
   else if (e.key === "Tab") { e.preventDefault(); G.switchTo((G.activeIndex + 1) % G.party.length); }
@@ -516,6 +525,7 @@ function onClick() {
 
   // dialogue choices take priority
   if (G.choices) { clickChoice(x, y); return; }
+  if (G.dialog) return;                       // in conversation, awaiting a response
 
   // portrait bar = switch character
   const pi = portraitAt(x, y);
@@ -523,9 +533,12 @@ function onClick() {
 
   if (y < ROOM_H) {
     const wx = x + G.camX, wy = y;
-    // click another crew member to take control of them
+    // click another crew member: "Talk to" them, otherwise take control
     const who = partyAt(wx, wy);
-    if (who >= 0 && who !== G.activeIndex) { G.switchTo(who); return; }
+    if (who >= 0 && who !== G.activeIndex) {
+      if (G.verb === "talk" && G.mateDialog) { const mate = G.party[who]; G.verb = "walkto"; G.converse(G.mateDialog(G, mate)); return; }
+      G.switchTo(who); return;
+    }
     clickRoom(wx, wy);
     return;
   }
@@ -540,33 +553,32 @@ function clickRoom(x, y) {
   if (G.choices) return;
 
   if (obj) {
-    // determine verb to apply
-    let verb = G.verb === "walkto" ? (obj.defaultVerb || "look") : G.verb;
+    const verb = G.verb === "walkto" ? (obj.defaultVerb || "look") : G.verb;
     const target = targetFromObject(obj);
+    const wt = obj.walkTo || { x: clampX(obj.x + obj.w / 2), y: G.player.y };
 
-    if (TWO_OBJECT[verb] && !G.primary) {
-      // first object of a two-object command
-      G.primary = target;
-      sfx("verb");
+    // Completing a two-object command — the held item was picked from inventory.
+    if (TWO_OBJECT[verb] && G.primary && G.primary.id !== obj.id) {
+      const a = G.primary;
+      walkPlayer(wt.x, wt.y, () => {
+        faceToward(G.player, obj.x + obj.w / 2);
+        G.primary = null; execTwo(verb, a, target); G.verb = "walkto";
+      });
       return;
     }
-    // walk to the object then act
-    const wt = obj.walkTo || { x: clampX(obj.x + obj.w / 2), y: G.player.y };
+    // "Give" needs something to give first; clicking the recipient alone prompts.
+    if (verb === "give" && !G.primary) {
+      sfx("error"); G.say("player", "I should pick something to give first."); G.verb = "walkto"; return;
+    }
+    // Every other verb (Use included) acts directly on this one object.
     walkPlayer(wt.x, wt.y, () => {
       faceToward(G.player, obj.x + obj.w / 2);
-      if (TWO_OBJECT[verb] && G.primary) {
-        const a = G.primary; const b = target; G.primary = null;
-        execTwo(verb, a, b);
-        G.verb = "walkto";
-      } else {
-        exec(verb, target, null);
-        G.verb = "walkto";
-      }
+      exec(verb, target, null); G.verb = "walkto";
     });
     return;
   }
 
-  // empty floor -> walk
+  // empty floor -> walk (and cancel any pending combine)
   if (G.primary) { G.primary = null; G.verb = "walkto"; }
   walkPlayer(x, y, null);
 }
@@ -578,12 +590,13 @@ function clickInventory(x, y) {
   const item = invAt(x, y);
   if (!item) return;
   const target = { id: item, name: G.items[item].name, obj: G.items[item] };
-  let verb = G.verb === "walkto" ? (G.items[item].defaultVerb || "look") : G.verb;
+  const verb = G.verb === "walkto" ? (G.items[item].defaultVerb || "look") : G.verb;
 
-  if (TWO_OBJECT[verb] && !G.primary) { G.primary = target; sfx("verb"); return; }
   if (TWO_OBJECT[verb] && G.primary) {
+    if (G.primary.id === item) { G.primary = null; G.verb = "walkto"; sfx("verb"); return; } // re-click = deselect
     const a = G.primary; G.primary = null; execTwo(verb, a, target); G.verb = "walkto"; return;
   }
+  if (TWO_OBJECT[verb]) { G.primary = target; sfx("verb"); return; }   // begin "Use/Give this with…"
   exec(verb, target, null); G.verb = "walkto";
 }
 
@@ -623,6 +636,8 @@ function exec(verbId, target, second) {
     const r = handler(G, second);
     if (typeof r === "string") G.say("player", r);
     else if (Array.isArray(r)) G.sayLines("player", r);
+  } else if (verbId === "use" && target.obj.useWith) {
+    G.say("player", "I'll need to use something with the " + target.name + ".");
   } else {
     G.say("player", DEFAULTS[verbId] || "Hm.");
   }
@@ -743,19 +758,105 @@ function updateSpeech(now) {
 
 /* ----------------------------------------------------------- choices ---- */
 G.choose = (prompt, list) => { G.choices = { prompt, list }; };
-function clickChoice(x, y) {
+
+// Geometry of the bottom choice menu (shared by render + hit-testing).
+function choicesGeom() {
   const list = G.choices.list;
-  const baseY = SCREEN_H - list.length * 11 - 4;
-  for (let i = 0; i < list.length; i++) {
-    const yy = baseY + i * 11;
-    if (y >= yy && y < yy + 11) {
-      const c = list[i];
-      G.choices = null;
-      sfx("select");
-      if (c.fn) c.fn(G);
-      return;
+  const hasPrompt = !!G.choices.prompt;
+  const rows = list.length + (hasPrompt ? 1 : 0);
+  const baseY = SCREEN_H - rows * 11 - 4;
+  return { baseY, optY: baseY + (hasPrompt ? 11 : 0), hasPrompt };
+}
+function clickChoice(x, y) {
+  const { optY } = choicesGeom();
+  for (let i = 0; i < G.choices.list.length; i++) {
+    const yy = optY + i * 11;
+    if (y >= yy && y < yy + 11) { selectChoice(i); return; }
+  }
+}
+function selectChoice(i) {
+  const c = G.choices && G.choices.list[i];
+  if (!c) return;
+  G.choices = null;
+  sfx("select");
+  if (c.fn) c.fn(G);
+}
+
+/* ----------------------------------------------------- dialogue trees -- */
+// A looping, branching conversation (SCUMM-style). def = {
+//   speaker: actorId responses default to,
+//   greeting?: [lines]   (spoken once when the talk starts),
+//   start?: nodeKey (default "root"), nodes: { key: node }, onEnd?(g)
+// }
+// node  = { say?:[lines], prompt?, noLeave?, leaveText?, leaveSay?, options:[opt] }
+// opt   = { text, when?(g), once?, say?:[lines], do?(g), goto?, end? }
+// A "line" is either "text" (spoken by def.speaker) or ["whoId", "text"].
+function dlgSpeak(line, defSpeaker) {
+  if (Array.isArray(line)) G.say(line[0], line[1]);
+  else G.say(defSpeaker || "player", line);
+}
+function dlgLines(v) { return typeof v === "function" ? v(G) : v; }
+
+G.converse = (def) => {
+  if (!def || !def.nodes) return;
+  G.dialog = { def, seen: {}, node: def.start || "root", phase: "idle", pending: null };
+  G.choices = null; G.primary = null; G.verb = "walkto";
+  if (def.greeting) {
+    dlgLines(def.greeting).forEach((l) => dlgSpeak(l, def.speaker));
+    G.dialog.phase = "intro";
+  } else {
+    gotoNode(G.dialog.node);
+  }
+};
+// programmatic exit (use inside an option's do() before starting a cutscene)
+G.endConverse = () => { G.dialog = null; G.choices = null; };
+
+function gotoNode(key) {
+  const d = G.dialog; if (!d) return;
+  const node = d.def.nodes[key];
+  if (!node) { endDialog(); return; }
+  d.node = key;
+  if (node.say) { dlgLines(node.say).forEach((l) => dlgSpeak(l, d.def.speaker)); d.phase = "intro"; }
+  else showDialogMenu();
+}
+function showDialogMenu() {
+  const d = G.dialog; if (!d) return;
+  const node = d.def.nodes[d.node];
+  const list = [];
+  (node.options || []).forEach((opt) => {
+    if (opt.when && !opt.when(G)) return;
+    if (opt.once && d.seen[d.node + "|" + opt.text]) return;
+    const label = typeof opt.text === "function" ? opt.text(G) : opt.text;
+    list.push({ text: label, fn: () => dialogPick(opt) });
+  });
+  if (!node.noLeave) list.push({ text: node.leaveText || "(end conversation)", fn: () => dialogPick({ end: true, say: node.leaveSay }) });
+  G.choices = { prompt: node.prompt || d.def.prompt || "", list };
+  d.phase = "menu";
+}
+function dialogPick(opt) {
+  const d = G.dialog; if (!d) return;
+  if (opt.once) d.seen[d.node + "|" + opt.text] = true;
+  if (opt.do) opt.do(G);
+  if (!G.dialog) return;                 // do() ended/redirected the conversation
+  const lines = opt.say ? dlgLines(opt.say) : null;
+  if (lines) lines.forEach((l) => dlgSpeak(l, d.def.speaker));
+  d.pending = opt.end ? "__end__" : (opt.goto || d.node);
+  d.phase = "response";
+}
+function updateDialog() {
+  const d = G.dialog; if (!d) return;
+  if (d.phase === "intro" || d.phase === "response") {
+    if (!G.current && G.speech.length === 0) {
+      if (d.phase === "intro") showDialogMenu();
+      else if (d.pending === "__end__") endDialog();
+      else gotoNode(d.pending);
     }
   }
+}
+function endDialog() {
+  const d = G.dialog; if (!d) return;
+  const cb = d.def.onEnd; G.dialog = null; G.choices = null;
+  if (cb) cb(G);
 }
 
 /* --------------------------------------------------------- cutscenes ---- */
@@ -834,6 +935,7 @@ function loop(ts) {
     G.party.forEach((a) => updateActor(a, dt));
     updateSpeech(now);
     updateCS(now);
+    updateDialog();
     const tickRoom = G.rooms[G.state.room];
     if (tickRoom && tickRoom.tick) tickRoom.tick(G);
     if (G.modal) updateModal(dt); else maybeBark(now, tickRoom);
@@ -855,13 +957,16 @@ function updateHover() {
   if (G.scene !== "play") { G.hover = null; return; }
   const { x, y } = G.mouse;
   if (y < ROOM_H) {
+    // a squadmate under the cursor — switch to them (or talk, with the verb)
+    const who = partyAt(x + G.camX, y);
+    if (who >= 0 && who !== G.activeIndex) { G.hover = { name: G.party[who].name, verb: G.verb === "talk" ? "talk" : "switchto" }; return; }
     const o = objectAt(x + G.camX, y);
-    G.hover = o ? { name: objName(o) } : null;
+    G.hover = o ? { name: objName(o), verb: o.defaultVerb || "look" } : null;
   } else {
     const v = verbAt(x, y);
-    if (v) { G.hover = { name: v.label }; return; }
+    if (v) { G.hover = { name: v.label, isVerb: true }; return; }
     const it = invAt(x, y);
-    G.hover = it ? { name: G.items[it].name } : null;
+    G.hover = it ? { name: G.items[it].name, verb: G.items[it].defaultVerb || "look" } : null;
   }
 }
 
@@ -1024,13 +1129,16 @@ function drawPanel(ctx) {
   ctx.fillStyle = "#06212c";
   ctx.fillRect(0, PANEL_Y - 1, SCREEN_W, 1);
 
-  // sentence line
-  let sentence = verbLabel(G.verb);
+  // sentence line — with no verb chosen, preview the hovered thing's default action
+  const hoverThing = G.hover && !G.hover.isVerb;
+  let activeVerb = G.verb;
+  if (G.verb === "walkto" && hoverThing && G.hover.verb && !G.primary) activeVerb = G.hover.verb;
+  let sentence = verbLabel(activeVerb);
   if (G.primary) {
     const conn = TWO_OBJECT[G.verb] || "";
     sentence += " " + G.primary.name + (conn ? " " + conn : "");
-    if (G.hover) sentence += " " + G.hover.name;
-  } else if (G.hover) {
+    if (hoverThing) sentence += " " + G.hover.name;
+  } else if (hoverThing) {
     sentence += " " + G.hover.name;
   }
   text(ctx, sentence, 6, PANEL_Y + 1, "#34d0b4");
@@ -1060,18 +1168,20 @@ function drawPanel(ctx) {
 
 function verbLabel(id) {
   if (id === "walkto") return "Walk to";
+  if (id === "switchto") return "Switch to";
   return (VERBS.find((v) => v.id === id) || { label: "Walk to" }).label;
 }
 function pointIn(p, x, y, w, h) { return p.x >= x && p.x < x + w && p.y >= y && p.y < y + h; }
 
 function drawChoices(ctx) {
   const list = G.choices.list;
-  const baseY = SCREEN_H - list.length * 11 - 4;
+  const { baseY, optY, hasPrompt } = choicesGeom();
   ctx.fillStyle = "rgba(4,8,14,0.92)";
   ctx.fillRect(0, baseY - 2, SCREEN_W, SCREEN_H - baseY + 2);
   ctx.fillStyle = "#06212c"; ctx.fillRect(0, baseY - 3, SCREEN_W, 1);
+  if (hasPrompt) text(ctx, G.choices.prompt, 6, baseY + 1, "#f2d04a");
   for (let i = 0; i < list.length; i++) {
-    const yy = baseY + i * 11;
+    const yy = optY + i * 11;
     const hover = G.mouse.y >= yy && G.mouse.y < yy + 11;
     text(ctx, (i + 1) + ". " + list[i].text, 6, yy + 1, hover ? "#f2d04a" : "#9fe0d6");
   }
