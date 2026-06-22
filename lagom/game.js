@@ -3,7 +3,8 @@
 // Reuses the shared pixel renderer and chiptune audio; no SCUMM engine here.
 import { rect, frame, sprite, px, speckle, mix } from "../js/pixel.js";
 import { sfx, playMusic } from "../js/audio.js";
-import { drawGreg, drawMonitor, drawPerson, drawDoor, drawCoffeeMachine, drawBike, drawCathedral, CAN, MUG, CLOCK } from "./art.js";
+import { ACTOR, ACTOR_W, ACTOR_H, SKINS as CREW, actorShadow } from "../js/art.js";
+import { drawGreg, drawMonitor, drawDoor, drawCoffeeMachine, drawBike, drawCathedral, CAN, MUG, CLOCK } from "./art.js";
 
 export const SCREEN_W = 320, SCREEN_H = 200;
 
@@ -71,7 +72,7 @@ G.begin = function () {
   G.day = 1;
   G.greg = freshGreg();
   G.flags = {};
-  G.player = { x: 244, y: 152, tx: 244, walking: false, facing: -1, anim: 0, pending: null, say: null, scale: 1.6 };
+  G.player = { x: 244, y: 152, tx: 244, walking: false, facing: -1, anim: 0, pending: null, say: null, scale: ACTOR_SCALE };
   startIntro();
 };
 
@@ -130,7 +131,11 @@ const FLOOR = {
   office:  { footY: 150, minX: 30, maxX: 286 },
 };
 const WALK_SPEED = 92; // px/sec
-const PLAYER = { skin: "#f0bd92", hair: "#5a3a1a", shirt: "#00a98f", pants: "#384a66" };
+const ACTOR_SCALE = 1.7;
+// "You" — a new dev in a teal Teamtailor hoodie (recolour of the shared rig).
+const PLAYER_SKIN = { h: "#5a3a1a", H: "#3a2412", t: "#00a98f", T: "#00715f" };
+// Bittan — the over-eager office plant-waterer (ginger, pink top).
+const BITTAN_SKIN = { h: "#d07a2a", H: "#a4541a", t: "#e87fb0", T: "#b5527f" };
 
 function spawnPlayer(x, facing) {
   const f = FLOOR[G.scene] || FLOOR.morning;
@@ -179,17 +184,33 @@ function objectsFor() {
       { id: "bed", x: 200, y: 90, w: 92, h: 40, walkX: 244, name: "bed", verb: "Sleep", sentence: "Go to sleep", act: startSleep, look: "A bed. Greg's overnight thirst is the only alarm that matters." },
       { id: "door", x: 288, y: 56, w: 30, h: 76, walkX: 278, name: "front door", verb: "Look at", act: () => say("It's late. Bed's calling, not the office.") },
     ];
-    case "office": return [
-      { id: "door", x: 8, y: 56, w: 34, h: 74, walkX: 52, name: "office door", verb: "Head home", sentence: "Head home", act: goHome, look: "Home, and tomorrow. Greg will be thirstier by morning." },
-      { id: "monitor", x: 78, y: 88, w: 62, h: 40, walkX: 110, name: "your computer", verb: "Clear tickets", sentence: "Clear a few tickets", act: clearTickets, look: "Forty-one open tickets. Forty-one. A nice round number." },
-      { id: "mug", x: 148, y: 98, w: 16, h: 18, walkX: 150, name: "coffee mug", verb: "Look at", act: () => say("Cold. The eternal developer beverage.") },
-      { id: "greg", x: 174, y: 78, w: 46, h: 52, walkX: 166, name: "Greg", verb: "Tend", act: openWatering, look: gregLook },
-      { id: "window", x: 150, y: 14, w: 150, h: 50, walkX: 250, name: "window", verb: "Look out of", act: () => say("Linkoping rooftops. Someone's pigeon is judging me.") },
-    ];
+    case "office": {
+      const objs = [
+        { id: "door", x: 8, y: 56, w: 34, h: 74, walkX: 60, name: "office door", verb: "Head home", sentence: "Head home", act: goHome, look: "Home, and tomorrow. Greg will be thirstier by morning." },
+        { id: "monitor", x: 78, y: 88, w: 62, h: 40, walkX: 110, name: "your computer", verb: "Clear tickets", sentence: "Clear a few tickets", act: clearTickets, look: "Forty-one open tickets. Forty-one. A nice round number." },
+        { id: "mug", x: 148, y: 98, w: 16, h: 18, walkX: 150, name: "coffee mug", verb: "Look at", act: () => say("Cold. The eternal developer beverage.") },
+        { id: "greg", x: 174, y: 78, w: 46, h: 52, walkX: 166, name: "Greg", verb: "Tend", act: openWatering, look: gregLook },
+        { id: "window", x: 150, y: 14, w: 150, h: 50, walkX: 250, name: "window", verb: "Look out of", act: () => say("Linkoping rooftops. Someone's pigeon is judging me.") },
+      ];
+      // coworkers are talk-to hotspots (positions update with the wanderer)
+      for (const n of (G.npcs || [])) objs.push({
+        id: "npc_" + n.id, x: n.x - 13, y: FLOOR.office.footY - ACTOR_H * n.scale, w: 26, h: ACTOR_H * n.scale,
+        walkX: n.x + (n.x < 160 ? 24 : -24), name: n.name, verb: "Talk to", sentence: "Talk to " + n.name,
+        act: () => talkNpc(n), look: () => say(n.desc),
+      });
+      return objs;
+    }
     default: return [];
   }
 }
 function gregLook() { say(moodLine(G.greg), "#8fe39b"); }
+function talkNpc(n) {
+  n.li = (n.li || 0);
+  G.npcSay = { id: n.id, text: n.lines[n.li % n.lines.length], until: G.t + 3.6 };
+  n.li++;
+  if (G.player) G.player.facing = n.x < G.player.x ? -1 : 1;
+  sfx("talk");
+}
 function lookAt(obj) {
   if (typeof obj.look === "function") obj.look();
   else say(obj.look || ("It's a " + obj.name + "."));
@@ -233,7 +254,7 @@ function startIntro() {
   playMusic("home");
   G.scene = "intro";
   G.card = {
-    bg: drawApartment,
+    bg: drawIntroScene,
     bgOpts: { night: false, light: 0.9 },
     lines: [
       { who: "", text: "TEAMTAILOR LINKOPING — your first week." },
@@ -270,7 +291,21 @@ function goMorning(first) {
 function goOffice() {
   G.scene = "office";
   playMusic("lagom_office");
-  spawnPlayer(56, 1);   // arriving through the office door
+  spawnPlayer(74, 1);   // arriving through the office door
+  // populate the office with coworkers (same rig as the heist crew)
+  G.npcs = [
+    { id: "per", name: "Per", skin: CREW.per, x: 46, face: 1, scale: ACTOR_SCALE,
+      desc: "Per, our CISO. Watches Greg like a SOC dashboard.",
+      lines: ["Security tip: a thirsty plant is a vulnerability. Hydrate.", "Greg's threat model is simple: you, forgetting.", "Lock your screen. Water your plant. Same discipline."] },
+    { id: "caroline", name: "Caroline", skin: CREW.caroline, long: true, x: 264, face: -1, scale: ACTOR_SCALE,
+      desc: "Caroline from payroll. Runs the office Greg-survival pool.",
+      lines: ["Month-end's brutal, but Greg looks fantastic. Keep it lagom.", "Numbers don't lie — that plant's thriving on your watch.", "If Greg dies, I'm putting it in the risk register."] },
+    { id: "bittan", name: "Bittan", skin: BITTAN_SKIN, long: true, x: 120, face: 1, scale: ACTOR_SCALE,
+      desc: "Bittan. The kindest person here, and Greg's biggest threat.",
+      lines: ["Oh, I just LOVE Greg! I gave him a little splash earlier.", "Don't worry, I topped Greg up for you! ...Was that too much?", "You're doing such a good job! Mind if I help water him?"],
+      wander: { min: 104, max: 172, dir: 1, anim: 0 } },
+  ];
+  G.npcSay = null;
   // Greg greets you with a modifier-aware quip
   const mq = {
     heatwave: "Phew, scorcher today. I'll be parched by tonight.",
@@ -519,6 +554,13 @@ function drawApartment(ctx, o = {}) {
   }
 }
 
+// Intro tableau: a departing colleague hands Greg over in your flat.
+function drawIntroScene(ctx) {
+  drawApartment(ctx, { night: false });
+  drawGreg(ctx, 152, 132, { scale: 1.0, stage: 2, mood: "content", t: G.t }); // Greg, on the counter
+  drawActor(ctx, 232, 152, ACTOR_SCALE, { skin: CREW.oskar, dir: "left" });    // the colleague, leaving
+}
+
 function drawOffice(ctx, o = {}) {
   // wall
   rect(ctx, 0, 0, SCREEN_W, 128, "#cfd6cf");
@@ -710,16 +752,39 @@ function drawBubble(ctx, cx, anchorY, str, color = "#eafff0") {
   lines.forEach((l, i) => text(ctx, l, bx + w / 2, by + 4 + i * 10, color, { size: 8, align: "center" }));
 }
 
+// Draw a Maniac-rig actor with feet at (fx, fy). Returns the sprite's top Y.
+function drawActor(ctx, fx, fy, scale, o = {}) {
+  const drawW = ACTOR_W * scale, drawH = ACTOR_H * scale;
+  const x = fx - drawW / 2, y = fy - drawH;
+  actorShadow(ctx, fx, fy, ACTOR_W, scale);
+  let frames, flip = false;
+  if (o.walking && (o.dir === "left" || o.dir === "right")) {
+    frames = (Math.floor(o.anim || 0) % 2 === 0) ? ACTOR.SIDE_A : ACTOR.SIDE_B;
+    flip = o.dir === "left";
+  } else if (o.dir === "back") frames = ACTOR.BACK;
+  else if (o.dir === "left" || o.dir === "right") { frames = ACTOR.SIDE_A; flip = o.dir === "left"; }
+  else frames = o.long ? ACTOR.FRONT_L : ACTOR.FRONT;
+  const bob = o.walking ? Math.round(Math.sin((o.anim || 0) * Math.PI)) : 0;
+  sprite(ctx, frames, x, y + bob, { scale, flip, override: o.skin });
+  return y + bob;
+}
+
 function drawPlayer(ctx) {
   const p = G.player;
   if (!p) return;
-  const s = p.scale;
-  const x = p.x - 8 * s, y = p.y - 29 * s;
-  // soft shadow
-  ctx.fillStyle = "rgba(0,0,0,0.22)";
-  ctx.fillRect((p.x - 9 * s) | 0, (p.y - 1) | 0, 18 * s, 3);
-  drawPerson(ctx, x, y, s, { facing: p.facing, step: p.walking ? (p.anim % 1) : null, ...PLAYER });
-  if (p.say) drawBubble(ctx, p.x, y, p.say.text, p.say.color);
+  const dir = p.walking ? (p.facing < 0 ? "left" : "right") : "front";
+  const topY = drawActor(ctx, p.x, p.y, p.scale || ACTOR_SCALE, { skin: PLAYER_SKIN, dir, walking: p.walking, anim: p.anim });
+  if (p.say) drawBubble(ctx, p.x, topY, p.say.text, p.say.color);
+}
+
+// The office coworkers, drawn with the same rig + their speech bubbles.
+function drawCoworkers(ctx) {
+  for (const n of (G.npcs || [])) {
+    const walking = !!(n.wander && n.moving);
+    const dir = walking ? (n.face < 0 ? "left" : "right") : "front";
+    const topY = drawActor(ctx, n.x, FLOOR.office.footY, n.scale, { skin: n.skin, long: n.long, dir, walking, anim: n.wander ? n.wander.anim : 0 });
+    if (G.npcSay && G.npcSay.id === n.id) drawBubble(ctx, n.x, topY, G.npcSay.text, "#cfe0ff");
+  }
 }
 
 // Subtle targeting brackets around the object under the cursor (adventure feel).
@@ -784,6 +849,19 @@ function update(dt) {
   // walk the avatar (not while a close-up / sleep animation is running)
   if (["morning", "office", "night"].includes(G.scene) && !G.closeup && !sleeping) updatePlayer(dt);
 
+  // coworkers: pace Bittan around (she pauses to chat), expire NPC speech
+  if (G.scene === "office" && !G.closeup && !sleeping && G.npcs) {
+    if (G.npcSay && G.t > G.npcSay.until) G.npcSay = null;
+    for (const n of G.npcs) if (n.wander) {
+      n.moving = !(G.npcSay && G.npcSay.id === n.id);   // stop to talk
+      if (!n.moving) continue;
+      n.x += n.wander.dir * 24 * dt; n.wander.anim += dt * 2.4;
+      if (n.x > n.wander.max) { n.x = n.wander.max; n.wander.dir = -1; }
+      if (n.x < n.wander.min) { n.x = n.wander.min; n.wander.dir = 1; }
+      n.face = n.wander.dir;
+    }
+  }
+
   // ambient Greg one-liners while you potter at the office
   if (G.scene === "office" && !G.closeup && !G.card) {
     if (G.gregSay && G.t > G.gregSay.until) G.gregSay = null;
@@ -832,6 +910,7 @@ function render() {
   if (["morning", "office", "night"].includes(G.scene) && !G.closeup && !sleeping) {
     G.sceneObjects = objectsFor();
     drawHoverBracket(ctx);
+    if (G.scene === "office") drawCoworkers(ctx);
     drawPlayer(ctx);
     if (G.scene === "office" && G.gregSay && G.gregSay.text) drawBubble(ctx, 196, 50, G.gregSay.text, "#8fe39b");
     drawSentence(ctx);
@@ -889,8 +968,8 @@ function drawCommute(ctx) {
   for (let x = -64; x < SCREEN_W; x += 64) rect(ctx, x + (64 - mk), 166, 32, 4, "#e6e6d0");
   // the cyclist, bobbing over the cobbles
   const bob = Math.sin(G.t * 9) * 2;
-  drawBike(ctx, 160, 150 + bob, 1.9, G.t * 11);
-  drawPerson(ctx, 148, 150 + bob - 38, 1.5, { facing: 1, step: (G.t * 2.6) % 1, ...PLAYER });
+  drawBike(ctx, 160, 152 + bob, 1.9, G.t * 11);
+  drawActor(ctx, 160, 156 + bob, 1.6, { skin: PLAYER_SKIN, dir: "right", walking: true, anim: G.t * 3 });
   if (G.modifier && G.modifier.id === "rainy") drawRain(ctx, 70);
   // caption
   text(ctx, G.commuteLabel || "", 160, 18, "#10140a", { size: 8, align: "center", shadow: false });
@@ -1008,3 +1087,7 @@ function bindInput() {
     if (e.key === " ") { spaceDown = false; if (G.closeup) G.closeup.pouring = false; }
   });
 }
+
+// Debug/test hooks (used by test/lagom-shots.mjs to reach scenes directly).
+G.__office = goOffice;
+G.__night = goNight;

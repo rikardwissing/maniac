@@ -22,10 +22,12 @@ await page.evaluate(()=>{const G=window.__LAGOM;const d=G.card&&G.card.onDone;G.
 await page.evaluate(()=>{const G=window.__LAGOM;G.banner={text:"— DAY 1 —",until:G.t+2.6};});
 await page.waitForTimeout(120); await shot("04-morning-banner");
 await page.waitForTimeout(700); await hover(303,94); await shot("04b-morning-walk"); // sentence: Go to work
-// office
-await page.evaluate(()=>{window.__LAGOM.scene='office';window.__LAGOM.fade=0;window.__LAGOM.fadeDir=0;window.__LAGOM.player={x:56,y:150,tx:56,walking:false,facing:1,anim:0,pending:null,say:null,scale:1.6};});
+// office (real entry so coworkers populate)
+await page.evaluate(()=>{window.__LAGOM.__office();window.__LAGOM.fade=0;window.__LAGOM.fadeDir=0;});
 await page.evaluate(()=>{window.__LAGOM.gregSay={text:"Lagom. The only philosophy a plant needs.",until:window.__LAGOM.t+9};});
-await page.waitForTimeout(200); await hover(197,104); await shot("05-office"); // sentence: Tend Greg + bracket + bubble
+await page.waitForTimeout(200); await hover(197,104); await shot("05-office"); // Greg + coworkers + bracket + bubble
+await page.evaluate(()=>{const n=window.__LAGOM.npcs.find(x=>x.id==='bittan');window.__LAGOM.npcSay={id:'bittan',text:"Don't worry, I topped Greg up for you! ...Was that too much?",until:window.__LAGOM.t+9};});
+await hover(120,110); await shot("05b-coworkers");
 // commute (day + dusk)
 await page.evaluate(()=>{const G=window.__LAGOM;G.scene='commute';G.commuteDusk=false;G.commuteLabel='Cycling to the office...';G.fade=0;G.fadeDir=0;});
 await page.waitForTimeout(200); await shot("05c-commute-day");
