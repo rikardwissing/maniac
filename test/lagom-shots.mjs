@@ -22,7 +22,14 @@ await page.evaluate(()=>{const G=window.__LAGOM;const d=G.card&&G.card.onDone;G.
 await page.waitForTimeout(400); await hover(303,94); await shot("04-morning-walk"); // sentence: Go to work
 // office
 await page.evaluate(()=>{window.__LAGOM.scene='office';window.__LAGOM.fade=0;window.__LAGOM.fadeDir=0;window.__LAGOM.player={x:56,y:150,tx:56,walking:false,facing:1,anim:0,pending:null,say:null,scale:1.6};});
-await page.waitForTimeout(200); await hover(197,104); await shot("05-office"); // sentence: Tend Greg
+await page.evaluate(()=>{window.__LAGOM.gregSay={text:"Lagom. The only philosophy a plant needs.",until:window.__LAGOM.t+9};});
+await page.waitForTimeout(200); await hover(197,104); await shot("05-office"); // sentence: Tend Greg + bracket + bubble
+// commute (day + dusk)
+await page.evaluate(()=>{const G=window.__LAGOM;G.scene='commute';G.commuteDusk=false;G.commuteLabel='Cycling to the office...';G.fade=0;G.fadeDir=0;});
+await page.waitForTimeout(200); await shot("05c-commute-day");
+await page.evaluate(()=>{const G=window.__LAGOM;G.scene='commute';G.commuteDusk=true;G.commuteLabel='Heading home for the evening...';});
+await page.waitForTimeout(200); await shot("05d-commute-dusk");
+await page.evaluate(()=>{const G=window.__LAGOM;G.scene='office';G.gregSay=null;});
 // watering close-up
 await page.evaluate(()=>{window.__LAGOM.closeup={level:60,pouring:true,committed:false};});
 await page.waitForTimeout(150); await shot("06-watering");

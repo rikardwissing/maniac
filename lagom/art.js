@@ -288,6 +288,33 @@ export function drawDoor(ctx, x, y, w, h, opts = {}) {
   rect(ctx, x + w - 6, y + h / 2 - 1, 2, 4, "#e8c84a"); // handle
 }
 
+// A bicycle (side view). spin animates the spokes. cx,cy = centre of frame.
+export function drawBike(ctx, cx, cy, s = 1, spin = 0) {
+  const r = 7 * s;
+  const wx1 = cx - 11 * s, wx2 = cx + 11 * s, wy = cy + 6 * s;
+  const wheel = (x) => {
+    for (let a = 0; a < Math.PI * 2; a += Math.PI / 24) rect(ctx, x + Math.cos(a) * r, wy + Math.sin(a) * r, Math.max(1, s), Math.max(1, s), "#1a1a1a"); // tyre
+    for (let k = 0; k < 6; k++) { const a = spin + k * Math.PI / 3; rect(ctx, x, wy, 1, 1, "#8a8a8a"); for (let i = 1; i < r; i++) rect(ctx, x + Math.cos(a) * i, wy + Math.sin(a) * i, 1, 1, "#7a7a82"); }
+  };
+  wheel(wx1); wheel(wx2);
+  // frame
+  rect(ctx, wx1, wy, 22 * s, Math.max(1, s), "#1f8f7e");
+  for (let i = 0; i < 14 * s; i++) { rect(ctx, wx1 + i * 0.6, wy - i * 0.7, Math.max(1, s), Math.max(1, s), "#1f8f7e"); rect(ctx, cx + i * 0.2, wy - i * 0.7, Math.max(1, s), Math.max(1, s), "#1f8f7e"); }
+  rect(ctx, cx + 1 * s, cy - 9 * s, Math.max(1, s), 9 * s, "#1f8f7e"); // seat post
+  rect(ctx, cx - 1 * s, cy - 10 * s, 6 * s, 2 * s, "#15151b"); // saddle
+  rect(ctx, wx2 - 2 * s, cy - 10 * s, Math.max(1, s), 10 * s, "#1f8f7e"); // fork
+  rect(ctx, wx2 - 4 * s, cy - 11 * s, 6 * s, 2 * s, "#15151b"); // handlebar
+}
+
+// Distant church silhouette (Linköping Domkyrka — one tall spire).
+export function drawCathedral(ctx, x, baseY, s = 1, col = "#8a93a6") {
+  const w = 26 * s, h = 30 * s;
+  rect(ctx, x, baseY - h, w, h, col);                       // nave
+  rect(ctx, x + w * 0.36, baseY - h - 22 * s, w * 0.28, 22 * s, col); // tower
+  for (let i = 0; i < 10 * s; i++) rect(ctx, x + w * 0.5 - i * 0.5, baseY - h - 22 * s - i, Math.max(1, i), Math.max(1, s), col); // spire
+  rect(ctx, x + 4 * s, baseY - 10 * s, 4 * s, 10 * s, "#5d6577"); // door
+}
+
 // Counter-top coffee machine.
 export function drawCoffeeMachine(ctx, x, y, s = 1) {
   rect(ctx, x, y, 18 * s, 22 * s, "#2a2a32");          // body
