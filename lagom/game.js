@@ -3,7 +3,7 @@
 // Reuses the shared pixel renderer and chiptune audio; no SCUMM engine here.
 import { rect, frame, sprite, px, speckle, mix } from "../js/pixel.js";
 import { sfx, playMusic } from "../js/audio.js";
-import { ACTOR, ACTOR_W, ACTOR_H, SKINS as CREW, actorShadow } from "../js/art.js";
+import { ACTOR, ACTOR_W, ACTOR_H, SKINS as CREW, actorShadow, drawPortrait } from "../js/art.js";
 import { drawGreg, drawMonitor, drawDoor, drawCoffeeMachine, drawBike, drawCathedral, CAN, MUG, CLOCK } from "./art.js";
 
 export const SCREEN_W = 320, SCREEN_H = 200;
@@ -352,28 +352,51 @@ function advanceConvo() {
 }
 function closeConvo() { G.convo = null; }
 
+// Map a speaker name to a portrait skin (null = Greg, drawn as a mini plant).
+function speakerSkin(who) {
+  if (who === ME) return PLAYER_SKIN;
+  return { Per: CREW.per, Caroline: CREW.caroline, Bittan: BITTAN_SKIN }[who] || null;
+}
+function speakerLong(who) { return who === "Caroline" || who === "Bittan"; }
+function speakerColor(who) { return who === "Greg" ? "#8fe39b" : who === ME ? "#bfe0ff" : "#e0c98f"; }
+
+// A framed head-and-shoulders portrait of whoever is speaking.
+function drawPortraitBox(ctx, x, y, size, who) {
+  rect(ctx, x + 1, y + 1, size - 2, size - 2, "#16241a");
+  const skin = speakerSkin(who);
+  if (skin) drawPortrait(ctx, skin, x + 1, y + 1, size - 2, speakerLong(who));
+  else { // Greg — a little potted portrait
+    ctx.save(); ctx.beginPath(); ctx.rect(x + 1, y + 1, size - 2, size - 2); ctx.clip();
+    drawGreg(ctx, x + size / 2, y + size + 3, { scale: size / 15, stage: 2, mood: gregMood(G.greg, false), t: G.t, bloom: G.greg.bloom });
+    ctx.restore();
+  }
+  frame(ctx, x, y, size, size, "#2c8540");
+}
+
 function drawConvo(ctx) {
   const c = G.convo;
   if (c.mode === "play") {
+    // a visual-novel dialogue bar: portrait + name + line
     const ln = c.queue[c.qi];
-    if (ln.who === ME) {
-      const top = G.player.y - ACTOR_H * playerScale();
-      drawBubble(ctx, G.player.x, top, ln.text, "#eafff0");
-    } else {
-      drawBubble(ctx, c.anchorX(), c.anchorY, ln.text, c.color);
-    }
+    const ph = 46, y0 = SCREEN_H - 15 - ph, ps = 36;
+    rect(ctx, 6, y0, 308, ph, "#0c140d");
+    frame(ctx, 6, y0, 308, ph, "#2c8540");
+    drawPortraitBox(ctx, 12, y0 + (ph - ps) / 2, ps, ln.who);
+    text(ctx, ln.who === ME ? "You" : ln.who, 56, y0 + 6, speakerColor(ln.who), { size: 7 });
+    wrap(ctx, ln.text, 248, 8).forEach((l, i) => text(ctx, l, 56, y0 + 18 + i * 10, "#eafff0", { size: 8 }));
     if (Math.floor(G.t * 1.5) % 2 === 0)
-      text(ctx, "click / SPACE >", SCREEN_W - 8, SCREEN_H - 24, "#6a7a6a", { size: 6, align: "right" });
+      text(ctx, "click / SPACE >", SCREEN_W - 10, y0 + ph - 10, "#6a7a6a", { size: 6, align: "right" });
     return;
   }
-  // menu of topics
+  // menu of topics, with the speaker's portrait in the header
   const rows = convoChoices().concat([{ q: "(Leave)", leave: true }]);
-  const lh = 12, h = 13 + rows.length * lh, y0 = SCREEN_H - 15 - h;
+  const lh = 12, hh = 22, h = hh + rows.length * lh + 4, y0 = SCREEN_H - 15 - h;
   rect(ctx, 6, y0, 308, h, "#0c140d");
   frame(ctx, 6, y0, 308, h, "#2c8540");
-  text(ctx, "▸ " + c.name, 12, y0 + 3, c.color, { size: 7 });
+  drawPortraitBox(ctx, 10, y0 + 3, 16, c.name === "Greg" ? "Greg" : c.name);
+  text(ctx, c.name, 30, y0 + 8, c.color, { size: 8 });
   rows.forEach((t, i) => {
-    const ry = y0 + 13 + i * lh;
+    const ry = y0 + hh + i * lh;
     const hot = G.mouse.x >= 8 && G.mouse.x <= 312 && G.mouse.y >= ry - 1 && G.mouse.y <= ry + lh - 2;
     text(ctx, (hot ? "› " : "  ") + t.q, 14, ry, hot ? "#eafff0" : (t.leave ? "#9aa89a" : "#bfd0bf"), { size: 7 });
     G.hotspots.push({ x: 8, y: ry - 1, w: 304, h: lh, fn: t.leave ? closeConvo : () => pickTopic(t), btn: true });

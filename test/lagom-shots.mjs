@@ -38,6 +38,8 @@ await page.evaluate(()=>{window.__LAGOM.gregSay=null;window.__LAGOM.__talkGreg()
 await page.waitForTimeout(150); await shot("05e-greg-convo-menu");
 await page.evaluate(()=>{const c=window.__LAGOM.convo;const t=c.topics.find(x=>/story/.test(x.q));window.__LAGOM.__pick(t);});
 await page.waitForTimeout(150); await shot("05f-greg-convo-line");
+await page.evaluate(()=>{const n=window.__LAGOM.npcs.find(x=>x.id==='bittan');window.__LAGOM.__talk(n);const c=window.__LAGOM.convo;window.__LAGOM.__pick(c.topics[0]);});
+await page.waitForTimeout(150); await shot("05i-bittan-line");
 await page.evaluate(()=>window.__LAGOM.__closeConvo());
 // commute (day + dusk)
 await page.evaluate(()=>{const G=window.__LAGOM;G.scene='commute';G.commuteDusk=false;G.commuteLabel='Cycling to the office...';G.fade=0;G.fadeDir=0;});
