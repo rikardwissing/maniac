@@ -97,6 +97,17 @@ export function sfx(name) {
     case "tada":   ["C5","E5","G5","C6"].forEach((n,i)=>tone(NOTE[n], t+i*0.07, 0.22, "square", 0.2)); tone(NOTE["G5"], t, 0.4, "triangle", 0.1); break;
     case "rumble": { for (let i=0;i<3;i++) noise(t+i*0.12, 0.4, 0.14); tone(NOTE["C2"], t, 0.7, "sawtooth", 0.18, NOTE["C1"]); break; }
     case "band":   ["C3","G3","C4","E4","G4","E4","C4","G3"].forEach((n,i)=>tone(NOTE[n], t+i*0.09, 0.12, "triangle", 0.16)); ["C5","E5","G5"].forEach((n,i)=>tone(NOTE[n], t+0.2+i*0.12, 0.2, "square", 0.12)); break;
+    // --- LAGOM cozy plant-care set ---
+    case "water":  { for (let i=0;i<5;i++) noise(t+i*0.04, 0.05, 0.05); tone(NOTE["C6"], t, 0.18, "sine", 0.05, NOTE["G5"]); break; }
+    case "drip":   tone(NOTE["G5"], t, 0.10, "sine", 0.10, NOTE["C5"]); break;
+    case "grow":   ["C5","E5","G5","B5"].forEach((n,i)=>tone(NOTE[n], t+i*0.08, 0.16, "triangle", 0.14)); break;
+    case "bloom":  ["G5","C6","E6","G6","E6"].forEach((n,i)=>tone(NOTE[n], t+i*0.09, 0.22, "sine", 0.14)); tone(NOTE["C4"], t, 0.5, "triangle", 0.08); break;
+    case "wilt":   tone(NOTE["E4"], t, 0.4, "sine", 0.14, NOTE["A3"]); break;
+    case "alarm":  { for (let i=0;i<4;i++){ tone(NOTE["A5"], t+i*0.16, 0.07, "square", 0.16); tone(NOTE["A5"], t+i*0.16+0.08, 0.07, "square", 0.16);} break; }
+    case "snooze": tone(NOTE["C5"], t, 0.1, "sine", 0.1, NOTE["C4"]); break;
+    case "sip":    tone(NOTE["G3"], t, 0.12, "triangle", 0.1, NOTE["C4"]); break;
+    case "page":   tone(NOTE["C4"], t, 0.05, "square", 0.08); break;
+    case "thud":   noise(t, 0.18, 0.18); tone(NOTE["C2"], t, 0.22, "sawtooth", 0.16, NOTE["C1"]); break;
   }
 }
 
@@ -132,6 +143,31 @@ const THEMES = {
     lead: ["E5","-","E5","-","F5","G5","-","G5","F5","E5","D5","-","C5","-","-","-",
            "C5","-","E5","-","G5","-","C6","-","B5","-","-","-","G5","-","-","-"],
     bass: ["C2","-","-","-","G2","-","-","-","A2","-","-","-","F2","-","G2","-"],
+  },
+  // --- LAGOM cozy themes ---
+  lagom_title: {
+    bpm: 84,
+    lead: ["C5","-","E5","-","G5","-","E5","-","A5","-","G5","E5","D5","-","-","-",
+           "F5","-","A5","-","G5","-","E5","-","C5","-","D5","-","C5","-","-","-"],
+    bass: ["C2","-","-","G2","-","-","A2","-","-","E2","-","-","F2","-","G2","-"],
+  },
+  home: {
+    bpm: 76,
+    lead: ["E5","-","-","-","D5","-","C5","-","D5","-","-","-","G4","-","-","-",
+           "C5","-","-","E5","-","-","D5","-","C5","-","-","-","-","-","-","-"],
+    bass: ["C2","-","-","-","A2","-","-","-","F2","-","-","-","G2","-","-","-"],
+  },
+  lagom_office: {
+    bpm: 100,
+    lead: ["G5","-","A5","G5","E5","-","G5","-","C5","-","E5","G5","A5","-","G5","-",
+           "F5","-","A5","F5","D5","-","F5","-","C5","-","D5","E5","C5","-","-","-"],
+    bass: ["C2","-","G2","-","A2","-","E2","-","F2","-","C2","-","G2","-","G2","-"],
+  },
+  funeral: {
+    bpm: 60,
+    lead: ["A4","-","-","-","E4","-","-","-","F4","-","-","-","E4","-","-","-",
+           "D4","-","-","-","C4","-","-","-","E4","-","-","-","-","-","-","-"],
+    bass: ["A1","-","-","-","E1","-","-","-","F1","-","-","-","E1","-","-","-"],
   },
 };
 

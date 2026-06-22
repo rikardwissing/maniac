@@ -136,6 +136,38 @@ See [`DEPLOY.md`](DEPLOY.md). `sh build.sh` assembles `./site`, then deploy to
 **tailor.zone** (`tailor deploy ./site`) or **GitHub Pages**
 (`.github/workflows/deploy.yml`).
 
+## Sibling game — LAGOM 🪴 (`/lagom`)
+
+A second, cozier game lives in this repo. **LAGOM** is a *nine-to-five
+survival story* — a **point-and-click adventure** where you **walk a character**
+around your flat and the office (click to walk, click a thing to use it; a
+SCUMM-style sentence line reads "Tend Greg", "Make coffee", "Go to work"). A
+departing colleague leaves you **Greg**, the beloved office plant, with one
+rule — *water him **lagom**, not too much, not too little.* It's a relaxed,
+**endless** day-loop (morning → office → night → repeat) where the whole tension
+is reading Greg's needs as his thirst escalates day after day. The watering
+mini-game **is** lagom: hold to pour, land the soil-moisture gauge in the green
+band — overshoot and he rots, undershoot and he wilts. Keep him thriving and he
+**grows, blooms, and becomes the office mascot**; let him go and there's a
+tasteful **funeral** with your streak on the headstone.
+
+It **shares the engine plumbing** — the `js/pixel.js` renderer and the
+`js/audio.js` chiptune synth — but has its own lightweight day-loop engine
+(`lagom/game.js`) and parametric pixel art (`lagom/art.js`, including a Greg who
+droops, emotes and flowers). Open `lagom/index.html`, or play the deployed
+build at `/lagom/`.
+
+```bash
+node test/lagom-play.mjs    # keyboard-driven playthrough: day loop, growth, funeral, restart
+node test/lagom-shots.mjs   # regenerate screenshots into shots/lagom/
+```
+
+> **Status:** Phases 0–2 — the full playable, *losable* core loop: a walkable
+> point-and-click character, story intro, day cycle, the Greg watering system,
+> growth/bloom milestones, funeral & restart. Still to come: an energy/action
+> budget, the ticket mini-game, coworkers, richer daily modifiers and a
+> streak/score screen.
+
 ## Credits
 
 Font: [Press Start 2P](https://fonts.google.com/specimen/Press+Start+2P) by
