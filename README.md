@@ -151,6 +151,12 @@ band — overshoot and he rots, undershoot and he wilts. Keep him thriving and h
 **grows, blooms, and becomes the office mascot**; let him go and there's a
 tasteful **funeral** with your streak on the headstone.
 
+The humour and story come through **branching dialogue trees**: talk to the
+coworkers — **Per** (CISO), **Caroline** (payroll), and **Bittan**, who paces
+about over-watering Greg "to help" — and **right-click Greg** to chat with the
+plant himself (he's outlived three product managers and has opinions). Choices
+can matter: ask Bittan to go easy and she'll actually tame her watering can.
+
 It **shares the engine plumbing** — the `js/pixel.js` renderer and the
 `js/audio.js` chiptune synth — but has its own lightweight day-loop engine
 (`lagom/game.js`) and parametric pixel art (`lagom/art.js`, including a Greg who

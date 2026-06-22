@@ -73,6 +73,9 @@ G.begin = function () {
   G.greg = freshGreg();
   G.flags = {};
   G.player = { x: 244, y: 152, tx: 244, walking: false, facing: -1, anim: 0, pending: null, say: null, scale: ACTOR_SCALE };
+  G.convo = null;
+  G._convoSeen = {};        // remembers consumed "once" topics across the run
+  G.bittanWarned = false;   // unlocked by asking Bittan to go easy on Greg
   startIntro();
 };
 
@@ -189,14 +192,14 @@ function objectsFor() {
         { id: "door", x: 8, y: 56, w: 34, h: 74, walkX: 60, name: "office door", verb: "Head home", sentence: "Head home", act: goHome, look: "Home, and tomorrow. Greg will be thirstier by morning." },
         { id: "monitor", x: 78, y: 88, w: 62, h: 40, walkX: 110, name: "your computer", verb: "Clear tickets", sentence: "Clear a few tickets", act: clearTickets, look: "Forty-one open tickets. Forty-one. A nice round number." },
         { id: "mug", x: 148, y: 98, w: 16, h: 18, walkX: 150, name: "coffee mug", verb: "Look at", act: () => say("Cold. The eternal developer beverage.") },
-        { id: "greg", x: 174, y: 78, w: 46, h: 52, walkX: 166, name: "Greg", verb: "Tend", act: openWatering, look: gregLook },
+        { id: "greg", x: 174, y: 78, w: 46, h: 52, walkX: 166, name: "Greg", verb: "Tend", act: openWatering, look: talkToGreg },
         { id: "window", x: 150, y: 14, w: 150, h: 50, walkX: 250, name: "window", verb: "Look out of", act: () => say("Linkoping rooftops. Someone's pigeon is judging me.") },
       ];
       // coworkers are talk-to hotspots (positions update with the wanderer)
       for (const n of (G.npcs || [])) objs.push({
         id: "npc_" + n.id, x: n.x - 13, y: FLOOR.office.footY - ACTOR_H * n.scale, w: 26, h: ACTOR_H * n.scale,
         walkX: n.x + (n.x < 160 ? 24 : -24), name: n.name, verb: "Talk to", sentence: "Talk to " + n.name,
-        act: () => talkNpc(n), look: () => say(n.desc),
+        act: () => talkToNpc(n), look: () => say(n.desc),
       });
       return objs;
     }
@@ -204,12 +207,168 @@ function objectsFor() {
   }
 }
 function gregLook() { say(moodLine(G.greg), "#8fe39b"); }
-function talkNpc(n) {
-  n.li = (n.li || 0);
-  G.npcSay = { id: n.id, text: n.lines[n.li % n.lines.length], until: G.t + 3.6 };
-  n.li++;
-  if (G.player) G.player.facing = n.x < G.player.x ? -1 : 1;
+
+/* ============================ dialogue trees ========================== *
+ * Conversations are where LAGOM's humour and story live. A tree is a list
+ * of topics; picking one plays a short back-and-forth (bubbles over the
+ * speaker), then returns to the menu. Topics can be `once`, `cond`itional,
+ * and run a `then` side-effect (e.g. taming Bittan's watering can).        */
+
+const ME = "me"; // bubble belongs to the player
+
+// --- topic builders per character (rebuilt on open so lines can be dynamic) ---
+function gregTopics() {
+  const g = G.greg;
+  return [
+    { q: "How are you holding up?", a: [{ who: "Greg", text: moodLine(g) }] },
+    { q: "What's your story, Greg?", once: true, then: () => { G.flags.gregStory = true; }, a: [
+      { who: "Greg", text: "I've outlived two reorgs, a rebrand, and three product managers." },
+      { who: ME, text: "Three?" },
+      { who: "Greg", text: "The first underwatered me. The second forgot I existed entirely." },
+      { who: "Greg", text: "The third... there was a 'team-building' week. Office shut. No one came." },
+      { who: "Greg", text: "I came back from that. Barely. So forgive the trust issues." },
+      { who: ME, text: "That won't happen on my watch." },
+      { who: "Greg", text: "They all say that. But you read the gauge. I have hope. Cautiously." },
+    ] },
+    { q: "Any watering wisdom?", a: [
+      { who: "Greg", text: "Lagom. Not too much, not too little." },
+      { who: "Greg", text: "It isn't watering, it's a lifestyle. Bittan has never once grasped it." },
+    ] },
+    { q: "Tell me about lagom.", cond: () => G.flags.gregStory, a: [
+      { who: "Greg", text: "Swedes have a word for the perfect amount: lagom." },
+      { who: "Greg", text: "Coffee, meetings, ambition, water — lagom. The whole country hums on it." },
+      { who: ME, text: "And you?" },
+      { who: "Greg", text: "I AM lagom. Keep me in the green and we both thrive. Simple. Not easy." },
+    ] },
+    { q: "What do you make of Bittan?", a: [
+      { who: "Greg", text: "Sweet woman. Absolute menace." },
+      { who: "Greg", text: "She 'helps.' My roots have seen things roots should never see." },
+    ] },
+  ];
+}
+
+function bittanTopics() {
+  return [
+    { q: "Have you been watering Greg?", a: [
+      { who: "Bittan", text: "Maybe a tiny splash! He looked SO thirsty." },
+      { who: ME, text: "How much is a 'splash', Bittan?" },
+      { who: "Bittan", text: "...A jug. Two? I lost count. Is that a lot?" },
+    ] },
+    { q: "Please — water him lagom, or leave it to me.", once: true, cond: () => !G.bittanWarned, then: () => { G.bittanWarned = true; toast("Bittan promises to go easy on Greg.", "#8fe39b"); }, a: [
+      { who: ME, text: "Bittan, I adore you, but please let me handle Greg's water." },
+      { who: "Bittan", text: "Oh! Lagom. Right. I always forget there's a RIGHT amount." },
+      { who: "Bittan", text: "Fine. I'll keep my watering can to myself. ...Mostly." },
+    ] },
+    { q: "How long have you known Greg?", once: true, a: [
+      { who: "Bittan", text: "Since before the rebrand! He's family." },
+      { who: "Bittan", text: "That's why I fuss. You'd fuss too if your friend was a fern." },
+    ] },
+    { q: "Is there fika?", a: [
+      { who: "Bittan", text: "Always. Fresh kanelbullar in the kitchen. Greg can't have any — I checked. Twice." },
+    ] },
+  ];
+}
+
+function carolineTopics() {
+  return [
+    { q: "What are the odds on Greg?", a: [
+      { who: "Caroline", text: "The survival pool? Day " + (G.best + 4) + "'s the favourite. I bet on you — don't embarrass me." },
+    ] },
+    { q: "How's month-end?", a: [
+      { who: "Caroline", text: "Reconciling to the öre. Greg's the only thing on this floor that balances." },
+    ] },
+    { q: "Why does everyone care about a plant?", once: true, a: [
+      { who: "Caroline", text: "Greg predates all of us. Keep him alive and the office stays... itself." },
+      { who: "Caroline", text: "Let him die and — well. Ask the PM who did. Oh. You can't." },
+    ] },
+  ];
+}
+
+function perTopics() {
+  return [
+    { q: "Security tip for today?", a: [
+      { who: "Per", text: "A thirsty plant is an unpatched vulnerability. Hydrate on a schedule." },
+    ] },
+    { q: "Isn't a plant out of scope?", once: true, a: [
+      { who: ME, text: "Per, Greg isn't an attack surface." },
+      { who: "Per", text: "Everything is an attack surface. Greg's just one with feelings." },
+    ] },
+    { q: "Any threats today?", a: [
+      { who: "Per", text: "Bittan. Armed with a watering can. Threat level: orange." },
+    ] },
+  ];
+}
+
+const NPC_TOPICS = { bittan: bittanTopics, caroline: carolineTopics, per: perTopics };
+
+function openConvo(spec) {
+  G.convo = {
+    id: spec.id, name: spec.name, color: spec.color || "#cfe0ff",
+    anchorX: spec.anchorX, anchorY: spec.anchorY, leaveLine: spec.leaveLine,
+    topics: spec.topics, mode: "menu", queue: null, qi: 0, cur: null,
+    seen: G._convoSeen[spec.id] || (G._convoSeen[spec.id] = {}),
+  };
+  if (G.player) { G.player.walking = false; G.player.pending = null; G.player.facing = spec.anchorX() < G.player.x ? -1 : 1; }
+  G.gregSay = null; G.npcSay = null;
   sfx("talk");
+}
+
+function talkToNpc(n) {
+  openConvo({ id: n.id, name: n.name, color: "#cfe0ff", anchorX: () => n.x,
+    anchorY: FLOOR.office.footY - ACTOR_H * n.scale - 2, topics: NPC_TOPICS[n.id](),
+    leaveLine: { who: n.name, text: "Mind how you go." } });
+}
+function talkToGreg() {
+  openConvo({ id: "greg", name: "Greg", color: "#8fe39b", anchorX: () => 196, anchorY: 52,
+    topics: gregTopics(), leaveLine: { who: "Greg", text: "Mind the gauge." } });
+}
+
+function convoChoices() {
+  return G.convo.topics.filter(t => (!t.once || !G.convo.seen[t.q]) && (!t.cond || t.cond()));
+}
+function pickTopic(t) {
+  const c = G.convo;
+  c.cur = t; c.queue = t.a; c.qi = 0; c.mode = "play";
+  if (G.player) G.player.facing = c.anchorX() < G.player.x ? -1 : 1;
+  sfx("page");
+}
+function advanceConvo() {
+  const c = G.convo; if (!c || c.mode !== "play") return;
+  c.qi++;
+  if (c.qi >= c.queue.length) {
+    c.seen[c.cur.q] = true;
+    const then = c.cur.then; c.cur = null; c.queue = null; c.mode = "menu";
+    if (then) then();
+  } else sfx("page");
+}
+function closeConvo() { G.convo = null; }
+
+function drawConvo(ctx) {
+  const c = G.convo;
+  if (c.mode === "play") {
+    const ln = c.queue[c.qi];
+    if (ln.who === ME) {
+      const top = G.player.y - ACTOR_H * (G.player.scale || ACTOR_SCALE);
+      drawBubble(ctx, G.player.x, top, ln.text, "#eafff0");
+    } else {
+      drawBubble(ctx, c.anchorX(), c.anchorY, ln.text, c.color);
+    }
+    if (Math.floor(G.t * 1.5) % 2 === 0)
+      text(ctx, "click / SPACE >", SCREEN_W - 8, SCREEN_H - 24, "#6a7a6a", { size: 6, align: "right" });
+    return;
+  }
+  // menu of topics
+  const rows = convoChoices().concat([{ q: "(Leave)", leave: true }]);
+  const lh = 12, h = 13 + rows.length * lh, y0 = SCREEN_H - 15 - h;
+  rect(ctx, 6, y0, 308, h, "#0c140d");
+  frame(ctx, 6, y0, 308, h, "#2c8540");
+  text(ctx, "▸ " + c.name, 12, y0 + 3, c.color, { size: 7 });
+  rows.forEach((t, i) => {
+    const ry = y0 + 13 + i * lh;
+    const hot = G.mouse.x >= 8 && G.mouse.x <= 312 && G.mouse.y >= ry - 1 && G.mouse.y <= ry + lh - 2;
+    text(ctx, (hot ? "› " : "  ") + t.q, 14, ry, hot ? "#eafff0" : (t.leave ? "#9aa89a" : "#bfd0bf"), { size: 7 });
+    G.hotspots.push({ x: 8, y: ry - 1, w: 304, h: lh, fn: t.leave ? closeConvo : () => pickTopic(t), btn: true });
+  });
 }
 function lookAt(obj) {
   if (typeof obj.look === "function") obj.look();
@@ -274,9 +433,9 @@ function goMorning(first) {
   // pick today's modifier (first day is always 'normal')
   G.modifier = first ? MODIFIERS[0] : MODIFIERS[Math.floor(Math.random() * MODIFIERS.length)];
   G.flags = {};
-  // Bittan's "help" lands before you arrive.
+  // Bittan's "help" lands before you arrive — gentler if you've had the talk.
   if (G.modifier.id === "bittan") {
-    G.greg.hydration = Math.min(105, G.greg.hydration + 28);
+    G.greg.hydration = Math.min(105, G.greg.hydration + (G.bittanWarned ? 12 : 28));
   }
   playMusic("home");
   // fade to black, then reveal the day's modifier as a phone notification;
@@ -295,14 +454,11 @@ function goOffice() {
   // populate the office with coworkers (same rig as the heist crew)
   G.npcs = [
     { id: "per", name: "Per", skin: CREW.per, x: 46, face: 1, scale: ACTOR_SCALE,
-      desc: "Per, our CISO. Watches Greg like a SOC dashboard.",
-      lines: ["Security tip: a thirsty plant is a vulnerability. Hydrate.", "Greg's threat model is simple: you, forgetting.", "Lock your screen. Water your plant. Same discipline."] },
+      desc: "Per, our CISO. Watches Greg like a SOC dashboard." },
     { id: "caroline", name: "Caroline", skin: CREW.caroline, long: true, x: 264, face: -1, scale: ACTOR_SCALE,
-      desc: "Caroline from payroll. Runs the office Greg-survival pool.",
-      lines: ["Month-end's brutal, but Greg looks fantastic. Keep it lagom.", "Numbers don't lie — that plant's thriving on your watch.", "If Greg dies, I'm putting it in the risk register."] },
+      desc: "Caroline from payroll. Runs the office Greg-survival pool." },
     { id: "bittan", name: "Bittan", skin: BITTAN_SKIN, long: true, x: 120, face: 1, scale: ACTOR_SCALE,
       desc: "Bittan. The kindest person here, and Greg's biggest threat.",
-      lines: ["Oh, I just LOVE Greg! I gave him a little splash earlier.", "Don't worry, I topped Greg up for you! ...Was that too much?", "You're doing such a good job! Mind if I help water him?"],
       wander: { min: 104, max: 172, dir: 1, anim: 0 } },
   ];
   G.npcSay = null;
@@ -853,7 +1009,7 @@ function update(dt) {
   if (G.scene === "office" && !G.closeup && !sleeping && G.npcs) {
     if (G.npcSay && G.t > G.npcSay.until) G.npcSay = null;
     for (const n of G.npcs) if (n.wander) {
-      n.moving = !(G.npcSay && G.npcSay.id === n.id);   // stop to talk
+      n.moving = !G.convo && !(G.npcSay && G.npcSay.id === n.id);   // stop to talk
       if (!n.moving) continue;
       n.x += n.wander.dir * 24 * dt; n.wander.anim += dt * 2.4;
       if (n.x > n.wander.max) { n.x = n.wander.max; n.wander.dir = -1; }
@@ -863,7 +1019,7 @@ function update(dt) {
   }
 
   // ambient Greg one-liners while you potter at the office
-  if (G.scene === "office" && !G.closeup && !G.card) {
+  if (G.scene === "office" && !G.closeup && !G.card && !G.convo) {
     if (G.gregSay && G.t > G.gregSay.until) G.gregSay = null;
     if (!G.gregSay && G.t > (G.nextBark || 0)) {
       G.gregSay = { text: ambientGregLine(), until: G.t + 3.6 };
@@ -908,12 +1064,12 @@ function render() {
 
   // playable scenes: object hotspots, the avatar, the sentence line + HUD
   if (["morning", "office", "night"].includes(G.scene) && !G.closeup && !sleeping) {
-    G.sceneObjects = objectsFor();
-    drawHoverBracket(ctx);
+    G.sceneObjects = G.convo ? [] : objectsFor();   // no walking/hover mid-conversation
+    if (!G.convo) drawHoverBracket(ctx);
     if (G.scene === "office") drawCoworkers(ctx);
     drawPlayer(ctx);
-    if (G.scene === "office" && G.gregSay && G.gregSay.text) drawBubble(ctx, 196, 50, G.gregSay.text, "#8fe39b");
-    drawSentence(ctx);
+    if (G.scene === "office" && !G.convo && G.gregSay && G.gregSay.text) drawBubble(ctx, 196, 50, G.gregSay.text, "#8fe39b");
+    if (G.convo) drawConvo(ctx); else drawSentence(ctx);
     drawHUD(ctx);
     drawBanner(ctx);
   } else if (["morning", "office", "night"].includes(G.scene) && !G.closeup) {
@@ -1031,6 +1187,13 @@ function onDown(e) {
     G.closeup.pouring = true;
     return;
   }
+  // an open conversation: click a topic (menu) or advance a line (play)
+  if (G.convo) {
+    if (G.convo.mode === "play") { advanceConvo(); return; }
+    const z = G.hotspots.find(h => hit(h.x, h.y, h.w, h.h)); // fresh hit-test
+    if (z && z.fn) z.fn();
+    return;
+  }
   // cards / intro / gameover
   if ((G.scene === "intro" || G.scene === "card") && G.card && !G.card.funeral) {
     // a button hotspot (none usually) else advance
@@ -1073,21 +1236,28 @@ function bindInput() {
     if (k === " ") {
       e.preventDefault();
       if (G.closeup) { if (!spaceDown) { G.closeup.pouring = true; spaceDown = true; } return; }
+      if (G.convo && G.convo.mode === "play") { advanceConvo(); return; }
       if ((G.scene === "intro" || G.scene === "card") && G.card && !G.card.funeral) advanceCard();
       else if (G.scene === "gameover" && G.card && G.card.onDone) G.card.onDone();
     }
     if (k === "enter") {
       if (G.closeup) { commitWatering(); return; }
+      if (G.convo && G.convo.mode === "play") { advanceConvo(); return; }
       if ((G.scene === "intro" || G.scene === "card") && G.card && !G.card.funeral) advanceCard();
       else if (G.scene === "gameover" && G.card && G.card.onDone) G.card.onDone();
     }
-    if (k === "h") flashHint("click to walk · click a thing to use it · right-click to look · hold to pour LAGOM");
+    if (k === "escape" && G.convo) closeConvo();
+    if (k === "h") flashHint("click to walk · click to use · right-click Greg to chat · talk to coworkers · hold to pour");
   });
   window.addEventListener("keyup", (e) => {
     if (e.key === " ") { spaceDown = false; if (G.closeup) G.closeup.pouring = false; }
   });
 }
 
-// Debug/test hooks (used by test/lagom-shots.mjs to reach scenes directly).
+// Debug/test hooks (used by the test harnesses to reach scenes/dialogue).
 G.__office = goOffice;
 G.__night = goNight;
+G.__pick = pickTopic;
+G.__closeConvo = closeConvo;
+G.__talk = talkToNpc;
+G.__talkGreg = talkToGreg;

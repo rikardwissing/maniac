@@ -63,6 +63,27 @@ try {
   }
   if ((await S()).stage < 3) throw new Error("Greg never grew despite good care, stage "+(await S()).stage);
 
+  // ---- dialogue trees: talk to Greg, and warn Bittan (a real side-effect) ----
+  if ((await S()).card) await key("Space");
+  await clickAt(...OBJ.morningDoor); await waitScene("office");
+  // right-click Greg opens his conversation tree
+  R=R||await rectOf();
+  await page.mouse.click(R.l+(197/320)*R.w, R.t+(104/200)*R.h, {button:"right"});
+  await page.waitForFunction(()=>!!window.__LAGOM.convo,null,{timeout:3000});
+  if ((await page.evaluate(()=>window.__LAGOM.convo.id))!=="greg") throw new Error("Greg convo did not open");
+  // pick the first topic, advance through its lines, then leave
+  await page.evaluate(()=>{const c=window.__LAGOM.convo;const t=c.topics.find(x=>(!x.once||!c.seen[x.q])&&(!x.cond||x.cond()));window.__LAGOM.__pick(t);});
+  for (let i=0;i<8;i++){ const m=await page.evaluate(()=>window.__LAGOM.convo?window.__LAGOM.convo.mode:null); if(m!=="play")break; await key("Space"); }
+  await page.evaluate(()=>window.__LAGOM.__closeConvo());
+  if (await page.evaluate(()=>!!window.__LAGOM.convo)) throw new Error("Greg convo did not close");
+  // talk to Bittan and trigger the "warn" topic -> sets bittanWarned
+  await page.evaluate(()=>{const n=window.__LAGOM.npcs.find(x=>x.id==="bittan");window.__LAGOM.__talk(n);});
+  await page.evaluate(()=>{const c=window.__LAGOM.convo;const t=c.topics.find(x=>/lagom, or leave it to me/.test(x.q));window.__LAGOM.__pick(t);});
+  for (let i=0;i<8;i++){ if((await page.evaluate(()=>window.__LAGOM.convo.mode))!=="play")break; await key("Space"); }
+  if (!(await page.evaluate(()=>window.__LAGOM.bittanWarned))) throw new Error("warning Bittan did not set bittanWarned");
+  await page.evaluate(()=>window.__LAGOM.__closeConvo());
+  console.log("dialogue trees OK (Greg chat + Bittan warned)");
+
   // ---- neglect Greg until he dies ----
   let guard=0;
   while ((await S()).scene!=="gameover" && guard++<40){
