@@ -119,6 +119,16 @@ try {
   await page.waitForTimeout(400);
   s=await S(); if(!(s.scene==="intro"||s.scene==="card"||s.scene==="morning")) throw new Error("restart failed, got "+JSON.stringify(s));
   console.log("restart OK -> "+s.scene);
+
+  // ---- 20-day victory ending: survive day 20 -> promotion -> credits ----
+  await page.evaluate(()=>{const G=window.__LAGOM; G.greg=Object.assign(G.greg||{},{hydration:62,alive:true,pests:0,dust:0,growth:20,stage:5}); G.day=20; G.scene="night"; G.__rollover();});
+  for (let i=0;i<16;i++){ if((await page.evaluate(()=>window.__LAGOM.scene))==="credits") break; await key("Space"); }
+  if ((await page.evaluate(()=>window.__LAGOM.scene))!=="credits") throw new Error("did not reach credits after day 20");
+  console.log("victory ending OK (promotion -> goodbye -> credits)");
+  await page.evaluate(()=>{window.__LAGOM.credits.start=window.__LAGOM.t-80;}); // jump to the end of the song
+  await clickAt(160,100); await page.waitForTimeout(300);
+  const sc=await page.evaluate(()=>window.__LAGOM.scene); if(!(sc==="intro"||sc==="card")) throw new Error("credits restart failed: "+sc);
+  console.log("credits restart OK -> "+sc);
 } catch(e){ fail=e; }
 
 if (errs.length) console.log("PAGE ERRORS:", errs);

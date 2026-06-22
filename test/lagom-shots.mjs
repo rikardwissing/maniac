@@ -47,6 +47,12 @@ await page.waitForTimeout(150); await shot("05j-aphids");
 await page.evaluate(()=>{window.__LAGOM.closeup=null;window.__LAGOM.greg.dust=1;window.__LAGOM.__dust();});
 await page.waitForTimeout(150); await shot("05k-dusting");
 await page.evaluate(()=>{window.__LAGOM.closeup=null;window.__LAGOM.greg.pests=0;window.__LAGOM.greg.dust=0;});
+// 20-day victory ending + credits
+await page.evaluate(()=>{const G=window.__LAGOM;G.day=20;G.greg.bloom=true;G.__win();});
+await page.waitForTimeout(150); await shot("06c-promotion");
+await page.evaluate(()=>{const G=window.__LAGOM;for(let i=0;i<24&&G.scene!=='credits';i++){if(G.card){const d=G.card.onDone;G.card.idx=G.card.lines.length-1;G.card=null;if(d)d();}}});
+await page.evaluate(()=>{window.__LAGOM.credits.start=window.__LAGOM.t-32;}); // show a verse + scrolled crew
+await page.waitForTimeout(150); await shot("06d-credits");
 // commute (day + dusk)
 await page.evaluate(()=>{const G=window.__LAGOM;G.scene='commute';G.commuteDusk=false;G.commuteLabel='Cycling to the office...';G.fade=0;G.fadeDir=0;});
 await page.waitForTimeout(200); await shot("05c-commute-day");

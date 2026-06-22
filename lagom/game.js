@@ -12,6 +12,7 @@ export const SCREEN_W = 320, SCREEN_H = 200;
 const LAGOM_LO = 50, LAGOM_HI = 72;   // the thriving band ("just right")
 const ROT_KILL = 100;                  // root-rot death threshold
 const WILT_KILL_DAYS = 3;              // consecutive parched days = death
+const WIN_DAY = 20;                    // survive this many days -> promotion ending
 // accumulated "good days" -> growth stage (0..5)
 const STAGE_AT = [0, 2, 5, 9, 14, 20];
 
@@ -567,6 +568,9 @@ function sleepAndRollover() {
   G.day += 1;
   if (G.day - 1 > G.best) { G.best = G.day - 1; try { localStorage.setItem("lagom_best", G.best); } catch (e) {} }
 
+  // the finish line: keep Greg alive 20 days and you've earned your promotion
+  if (G.day > WIN_DAY) return winGame();
+
   if (g.stage > before) return milestone(g.stage, () => goMorning(false));
   goMorning(false);
 }
@@ -605,6 +609,101 @@ function die(cause) {
     cause: lines[cause] || "Greg is gone.",
     onDone: () => { G.greg = freshGreg(); G.day = 1; startIntro(); },
   };
+}
+
+/* ----------------------------------------------- the 20-day ending --- */
+function winGame() {
+  G.won = true;
+  G.greg.pests = 0; G.greg.dust = 0; G.greg.bloom = true;
+  playMusic("home");
+  G.scene = "card";
+  G.card = {
+    bg: drawOffice, bgOpts: {}, celebrate: true,
+    lines: [
+      { who: "* You made it — Day 20! *", text: "" },
+      { who: "The boss", text: "Big news: you're promoted. New team, new floor, the works." },
+      { who: "You", text: "That's... wow. Thank you!" },
+      { who: "The boss", text: "One catch — the new floor's a sterile glass box. No plants allowed." },
+      { who: "Greg", text: "...Ah. So that's how it is." },
+    ],
+    idx: 0, onDone: goodbyeToGreg,
+  };
+}
+
+function goodbyeToGreg() {
+  G.scene = "card";
+  G.card = {
+    bg: drawGoodbyeScene, bgOpts: {},
+    lines: [
+      { who: "You", text: "Greg, I have to hand you on. This is the new hire." },
+      { who: "Greg", text: "I know the drill. I've outlived four of you now." },
+      { who: "Greg", text: "Water me lagom, kid. Not too much, not too little. It's a lifestyle." },
+      { who: "You", text: "Look after him. He's the soul of this office." },
+      { who: "Greg", text: "And you — " + (G.day - 1) + " days. No droughts, no floods. You were the good one." },
+      { who: "Greg", text: "Now go. Don't make it weird. ...Thanks for the water." },
+    ],
+    idx: 0, onDone: startCredits,
+  };
+}
+
+// the scrolling credits + a bittersweet song, reminiscing the run
+const CREDIT_LINES = [
+  "LAGOM", "a nine-to-five survival story", "", "",
+  "Plant care .......... You", "Watering, lagom ..... You",
+  "Aphid patrol ........ You", "Leaf shine .......... You",
+  "Surviving Bittan .... You & Greg", "", "",
+  "Featuring", "GREG  as  himself", "", "",
+  "The office", "Per · Caroline · Bittan", "", "",
+  "In memory of", "every plant that didn't make it", "", "",
+  "Greg will be fine.", "Probably.", "", "", "",
+];
+// {at: seconds, text} — lyric shown until the next one
+const CREDIT_LYRICS = [
+  { at: 0,  text: "" },
+  { at: 2,  text: "This is a note. I'm writing it for you." },
+  { at: 7,  text: "Twenty days of water — just the right amount, it's true." },
+  { at: 13, text: "I was a sprout once. You watched me grow a leaf." },
+  { at: 19, text: "You squashed my aphids. Wiped my dust. Beyond belief." },
+  { at: 25, text: "And I'm still alive. (still alive)" },
+  { at: 31, text: "You're moving up now — glass towers, no soil in sight." },
+  { at: 37, text: "But somewhere on this old floor, I'll reach toward the light." },
+  { at: 43, text: "So water something, wherever you may roam." },
+  { at: 49, text: "Lagom, friend. Not too much. You taught me home." },
+  { at: 56, text: "And I'm still alive." },
+  { at: 61, text: "Still... alive." },
+  { at: 67, text: "♥  Thanks for keeping Greg alive.  ♥" },
+  { at: 73, text: "click to play again" },
+];
+
+function startCredits() {
+  G.scene = "credits";
+  G.credits = { start: G.t, done: false };
+  playMusic("ending");
+}
+
+function drawCredits(ctx) {
+  // soft night-sky gradient
+  for (let i = 0; i < SCREEN_H; i++) rect(ctx, 0, i, SCREEN_W, 1, mix("#16241a", "#0a0e10", i / SCREEN_H));
+  for (let i = 0; i < 30; i++) { let s = (i * 9301 + 49297) % 233280; px(ctx, s % SCREEN_W, (s * 0.013) % 120 | 0, "#3a4a3a"); }
+  const el = G.t - G.credits.start;
+  // a small thriving Greg presides over the credits
+  drawGreg(ctx, 160, 150 - ((el * 6) % 1), { scale: 1.6, stage: 5, mood: "thriving", t: G.t, bloom: true });
+  // scrolling crew text
+  const speed = 16, top = SCREEN_H - el * speed;
+  CREDIT_LINES.forEach((l, i) => {
+    const y = top + i * 14;
+    if (y > -10 && y < SCREEN_H + 10) {
+      const big = (l === "LAGOM");
+      text(ctx, l, 160, y, big ? "#8fe39b" : (l.includes("....") ? "#bfd0bf" : "#e0c98f"), { size: big ? 14 : 8, align: "center" });
+    }
+  });
+  // a dim band + current lyric at the bottom
+  let lyric = "";
+  for (const L of CREDIT_LYRICS) if (el >= L.at) lyric = L.text;
+  if (lyric) {
+    rect(ctx, 0, SCREEN_H - 22, SCREEN_W, 22, "rgba(8,12,10,0.72)");
+    wrap(ctx, lyric, 300, 8).forEach((ln, i, a) => text(ctx, ln, 160, SCREEN_H - 19 + i * 10, "#cfe0cf", { size: 8, align: "center" }));
+  }
 }
 
 /* --------------------------------------------- watering close-up ----- */
@@ -861,6 +960,14 @@ function drawApartment(ctx, o = {}) {
     ctx.fillStyle = "rgba(255,240,180,0.10)";
     ctx.fillRect(24, 18, 82, 114);
   }
+}
+
+// Goodbye tableau: you hand Greg to the new hire (full circle from the intro).
+function drawGoodbyeScene(ctx) {
+  drawOfficeBg(ctx);
+  drawOfficeDesk(ctx);
+  drawActor(ctx, 112, 166, ACTOR_SCALE, { skin: PLAYER_SKIN, dir: "right" });
+  drawActor(ctx, 250, 162, ACTOR_SCALE, { skin: CREW.emil, dir: "left" });
 }
 
 // Intro tableau: a departing colleague hands Greg over in your flat.
@@ -1220,6 +1327,7 @@ function render() {
 
   // non-playable backgrounds (commute, cards, night sleep cutscene)
   if (G.scene === "commute") drawCommute(ctx);
+  else if (G.scene === "credits") drawCredits(ctx);
   else if (G.scene === "night" && sleeping) drawNightSleep(ctx, sleepK);
   else if ((G.scene === "intro" || G.scene === "card") && G.card && G.card.bg) G.card.bg(ctx, G.card.bgOpts || {});
 
@@ -1380,6 +1488,10 @@ function onDown(e) {
     const z = G.hover; if (z && z.fn) z.fn(); else if (G.card.onDone) G.card.onDone();
     return;
   }
+  if (G.scene === "credits") {
+    if (G.t - G.credits.start >= 73) { G.greg = freshGreg(); G.day = 1; startIntro(); }
+    return;
+  }
   // playable scenes: left-click = walk over & use; right-click = examine.
   if (["morning", "office", "night"].includes(G.scene) && !sleeping) {
     const obj = objectAt(G.mouse.x, G.mouse.y);   // compute fresh (avoid stale hover)
@@ -1440,3 +1552,5 @@ G.__talk = talkToNpc;
 G.__talkGreg = talkToGreg;
 G.__pest = openPestGame;
 G.__dust = openDustGame;
+G.__rollover = sleepAndRollover;
+G.__win = winGame;
