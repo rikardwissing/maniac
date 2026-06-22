@@ -28,6 +28,11 @@ await page.evaluate(()=>{window.__LAGOM.gregSay={text:"Lagom. The only philosoph
 await page.waitForTimeout(200); await hover(197,104); await shot("05-office"); // Greg + coworkers + bracket + bubble
 await page.evaluate(()=>{const n=window.__LAGOM.npcs.find(x=>x.id==='bittan');window.__LAGOM.npcSay={id:'bittan',text:"Don't worry, I topped Greg up for you! ...Was that too much?",until:window.__LAGOM.t+9};});
 await hover(120,110); await shot("05b-coworkers");
+// depth: walk behind vs in front of the desk
+await page.evaluate(()=>{const p=window.__LAGOM.player;p.x=152;p.y=137;p.tx=152;p.ty=137;p.walking=false;window.__LAGOM.gregSay=null;window.__LAGOM.npcSay=null;});
+await page.waitForTimeout(120); await shot("05g-behind-desk");
+await page.evaluate(()=>{const p=window.__LAGOM.player;p.x=120;p.y=166;p.tx=120;p.ty=166;});
+await page.waitForTimeout(120); await shot("05h-in-front");
 // dialogue trees
 await page.evaluate(()=>{window.__LAGOM.gregSay=null;window.__LAGOM.__talkGreg();});
 await page.waitForTimeout(150); await shot("05e-greg-convo-menu");
