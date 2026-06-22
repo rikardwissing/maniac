@@ -38,6 +38,7 @@ try {
     if ((await S()).card) await key("Space");
     await clickAt(...OBJ.morningDoor);             // walk to door -> go to work
     await waitScene("office");
+    await page.evaluate(()=>{window.__LAGOM.greg.pests=0;window.__LAGOM.greg.dust=0;}); // deterministic watering path
     await clickAt(...OBJ.greg);                     // walk to Greg -> watering close-up
     await page.waitForFunction(()=>!!window.__LAGOM.closeup,null,{timeout:6000});
     // prove holding to pour raises the soil level
@@ -83,6 +84,24 @@ try {
   if (!(await page.evaluate(()=>window.__LAGOM.bittanWarned))) throw new Error("warning Bittan did not set bittanWarned");
   await page.evaluate(()=>window.__LAGOM.__closeConvo());
   console.log("dialogue trees OK (Greg chat + Bittan warned)");
+
+  // ---- affliction minigames: aphids + dusting ----
+  // aphids: give Greg pests, the Greg verb becomes De-bug, clear them
+  await page.evaluate(()=>{window.__LAGOM.greg.pests=5;window.__LAGOM.greg.dust=0;});
+  await clickAt(...OBJ.greg);
+  await page.waitForFunction(()=>window.__LAGOM.closeup&&window.__LAGOM.closeup.type==="pest",null,{timeout:5000});
+  await page.evaluate(()=>window.__LAGOM.closeup.bugs.forEach(b=>b.dead=true)); // squash all
+  await page.waitForFunction(()=>!window.__LAGOM.closeup&&window.__LAGOM.greg.pests===0,null,{timeout:3000});
+  // dust: make him dusty, verb becomes Dust, wipe it clean (growth +1)
+  const gBefore = await page.evaluate(()=>window.__LAGOM.greg.growth);
+  await page.evaluate(()=>{window.__LAGOM.greg.dust=1;});
+  await clickAt(...OBJ.greg);
+  await page.waitForFunction(()=>window.__LAGOM.closeup&&window.__LAGOM.closeup.type==="dust",null,{timeout:5000});
+  await page.evaluate(()=>window.__LAGOM.closeup.patches.forEach(p=>p.dust=0)); // wipe all
+  await page.waitForFunction(()=>!window.__LAGOM.closeup&&window.__LAGOM.greg.dust===0,null,{timeout:3000});
+  const gAfter = await page.evaluate(()=>window.__LAGOM.greg.growth);
+  if (!(gAfter>gBefore)) throw new Error("dusting did not boost growth ("+gBefore+"->"+gAfter+")");
+  console.log("minigames OK (aphids squashed + leaves dusted)");
 
   // ---- neglect Greg until he dies ----
   let guard=0;

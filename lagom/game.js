@@ -28,6 +28,7 @@ const MODIFIERS = [
   { id: "fika",     icon: "o",  name: "Free fika",           note: "Kanelbullar in the kitchen. Morale is high." },
   { id: "rainy",    icon: "/",  name: "Rainy commute",       note: "Grey skies. Cosy desk weather, though." },
   { id: "bittan",   icon: "!",  name: "Bittan helped out",   note: "\"I watered Greg for you!\" ...uh oh. He may be soggy." },
+  { id: "cold",     icon: "*",  name: "Cold snap",           note: "Chilly office. Greg sips slowly tonight — go easy on the water." },
 ];
 
 /* ------------------------------------------------------- the state ---- */
@@ -52,7 +53,7 @@ export const G = {
 function freshGreg() {
   // Greg arrives as an established desk plant (he's outlived three PMs), so he
   // starts mid-growth; good care grows him toward bloom and mascot status.
-  return { hydration: 60, growth: STAGE_AT[2], stage: 2, rot: 0, wiltDays: 0, alive: true };
+  return { hydration: 60, growth: STAGE_AT[2], stage: 2, rot: 0, wiltDays: 0, alive: true, pests: 0, dust: 0 };
 }
 
 /* ------------------------------------------------------------ boot --- */
@@ -201,7 +202,7 @@ function objectsFor() {
         { id: "door", x: 8, y: 56, w: 34, h: 74, walkX: 60, walkY: 166, name: "office door", verb: "Head home", sentence: "Head home", act: goHome, look: "Home, and tomorrow. Greg will be thirstier by morning." },
         { id: "monitor", x: 78, y: 88, w: 62, h: 40, walkX: 110, walkY: 165, name: "your computer", verb: "Clear tickets", sentence: "Clear a few tickets", act: clearTickets, look: "Forty-one open tickets. Forty-one. A nice round number." },
         { id: "mug", x: 148, y: 98, w: 16, h: 18, walkX: 150, walkY: 165, name: "coffee mug", verb: "Look at", act: () => say("Cold. The eternal developer beverage.") },
-        { id: "greg", x: 174, y: 78, w: 46, h: 52, walkX: 168, walkY: 166, name: "Greg", verb: "Tend", act: openWatering, look: talkToGreg },
+        gregObject(),
         { id: "window", x: 150, y: 14, w: 150, h: 50, walkX: 250, walkY: 162, name: "window", verb: "Look out of", act: () => say("Linkoping rooftops. Someone's pigeon is judging me.") },
       ];
       // coworkers are talk-to hotspots (positions update with the wanderer)
@@ -216,6 +217,14 @@ function objectsFor() {
   }
 }
 function gregLook() { say(moodLine(G.greg), "#8fe39b"); }
+// Greg's most pressing need drives the click: de-bug > dust > water.
+function gregObject() {
+  const g = G.greg;
+  let verb = "Tend", sentence = "Water Greg", act = openWatering;
+  if (g.pests > 0) { verb = "De-bug"; sentence = "De-bug Greg (aphids!)"; act = openPestGame; }
+  else if (g.dust >= 0.6) { verb = "Dust"; sentence = "Dust Greg's leaves"; act = openDustGame; }
+  return { id: "greg", x: 174, y: 78, w: 46, h: 52, walkX: 168, walkY: 166, name: "Greg", verb, sentence, act, look: talkToGreg };
+}
 
 /* ============================ dialogue trees ========================== *
  * Conversations are where LAGOM's humour and story live. A tree is a list
@@ -469,6 +478,11 @@ function goMorning(first) {
   if (G.modifier.id === "bittan") {
     G.greg.hydration = Math.min(105, G.greg.hydration + (G.bittanWarned ? 12 : 28));
   }
+  // afflictions: dust slowly accrues; aphids occasionally arrive (more so later)
+  if (!first) {
+    G.greg.dust = Math.min(1, (G.greg.dust || 0) + 0.22);
+    if (G.greg.pests === 0 && Math.random() < 0.22 + Math.min(0.2, G.day * 0.015)) G.greg.pests = 4 + Math.floor(Math.random() * 3);
+  }
   playMusic("home");
   // fade to black, then reveal the day's modifier as a phone notification;
   // dismissing it drops you into the playable morning.
@@ -494,15 +508,20 @@ function goOffice() {
       wander: { min: 104, max: 172, dir: 1, anim: 0 } },
   ];
   G.npcSay = null;
-  // Greg greets you with a modifier-aware quip
+  // Greg greets you — afflictions take priority over the weather quip
   const mq = {
     heatwave: "Phew, scorcher today. I'll be parched by tonight.",
     fika: "Is that... kanelbullar? Bring me a crumb. For morale.",
     rainy: "Grey day. Perfect for a quiet drink. Of water. Hint hint.",
     bittan: "Bittan 'helped' again. I may be a touch soggy — check the gauge.",
+    cold: "Brr. I'll barely sip tonight, so easy on the watering can.",
     normal: "Morning. Try not to let the lagom slip.",
   };
-  G.gregSay = { text: (G.modifier && mq[G.modifier.id]) || mq.normal, until: G.t + 4.2 };
+  let greet;
+  if (G.greg.pests > 0) greet = "Psst. I have... visitors. On my leaves. Found a bug. Literally.";
+  else if (G.greg.dust >= 0.6) greet = "I'm positively dusty. A wipe would be heavenly.";
+  else greet = (G.modifier && mq[G.modifier.id]) || mq.normal;
+  G.gregSay = { text: greet, until: G.t + 4.4 };
   G.nextBark = G.t + 9;
 }
 
@@ -517,9 +536,12 @@ function sleepAndRollover() {
   const g = G.greg;
   let drain = 14 + Math.min(G.day, 22) * 1.1;
   if (G.modifier && G.modifier.id === "heatwave") drain *= 1.7;
+  if (G.modifier && G.modifier.id === "cold") drain *= 0.6;
+  // unsquashed aphids suck sap overnight (and breed)
+  if (g.pests > 0) { drain += 8 + g.pests * 1.4; g.pests = Math.min(10, g.pests + 2); }
 
-  // growth: a day spent in the lagom band makes Greg grow
-  if (g.hydration >= LAGOM_LO && g.hydration <= LAGOM_HI) g.growth += 1;
+  // growth: a day in the lagom band grows Greg — unless he's too dusty to drink light
+  if (g.hydration >= LAGOM_LO && g.hydration <= LAGOM_HI && g.dust < 0.6) g.growth += 1;
 
   // rot accumulates while soggy, heals while comfortable
   if (g.hydration > 88) g.rot += 22 + (g.hydration - 88);
@@ -588,6 +610,7 @@ function die(cause) {
 /* --------------------------------------------- watering close-up ----- */
 function openWatering() {
   G.closeup = {
+    type: "water",
     level: G.greg.hydration,    // moisture rises as you pour; can't go back down
     pouring: false,
     committed: false,
@@ -693,6 +716,104 @@ function drawWatering(ctx) {
   G.hotspots.push({ x: bx, y: by, w: bw, h: bh, fn: commitWatering, btn: true });
 }
 
+/* ----------------------------------------- pest & dust minigames ----- */
+// A shared close-up backdrop: dim office + big Greg + a corner button.
+function drawCloseupFrame(ctx, mood, droop) {
+  ctx.fillStyle = "rgba(6,10,8,0.8)"; ctx.fillRect(0, 0, SCREEN_W, SCREEN_H);
+  drawGreg(ctx, 160, 178, { scale: 4.0, stage: G.greg.stage, droop, mood, t: G.t, bloom: G.greg.bloom });
+}
+function closeupButton(ctx, label, fn) {
+  const bw = 76, bh = 18, bx = SCREEN_W - bw - 8, by = 178;
+  const hot = hit(bx, by, bw, bh);
+  rect(ctx, bx, by, bw, bh, hot ? "#8fe39b" : "#2c8540");
+  frame(ctx, bx, by, bw, bh, "#0a120a");
+  text(ctx, label, bx + bw / 2, by + 5, hot ? "#0a120a" : "#eafff0", { size: 8, align: "center" });
+  G.hotspots.push({ x: bx, y: by, w: bw, h: bh, fn, btn: true });
+}
+
+// --- Aphid Patrol: squash the bugs on Greg's leaves (devs love debugging) ---
+function openPestGame() {
+  const n = Math.max(4, G.greg.pests || 5);
+  const bugs = [];
+  for (let i = 0; i < n; i++) {
+    const a = Math.random() * Math.PI * 2, r = 18 + Math.random() * 44;
+    bugs.push({ x: 160 + Math.cos(a) * r, y: 110 + Math.sin(a) * r * 0.8, ph: Math.random() * 6.28, dead: false });
+  }
+  G.closeup = { type: "pest", bugs, total: n };
+  sfx("page");
+}
+function updatePest(dt) {
+  const c = G.closeup; if (!c) return;
+  for (const b of c.bugs) if (!b.dead) { b.ph += dt * 3; b.x += Math.sin(b.ph) * 8 * dt; b.y += Math.cos(b.ph * 0.7) * 6 * dt; }
+  if (c.bugs.every(b => b.dead)) finishPest(true);
+}
+function squashAt(mx, my) {
+  const c = G.closeup; if (!c) return;
+  for (const b of c.bugs) if (!b.dead && Math.hypot(b.x - mx, b.y - my) < 9) {
+    b.dead = true; sfx("bug");
+    if (c.bugs.every(x => x.dead)) finishPest(true);
+    return;
+  }
+}
+function finishPest(cleared) {
+  const remaining = G.closeup ? G.closeup.bugs.filter(b => !b.dead).length : G.greg.pests;
+  G.greg.pests = cleared ? 0 : remaining;
+  G.closeup = null;
+  if (cleared) { sfx("win"); toast("Aphids squashed! Greg can breathe.", "#8fe39b"); }
+  else toast("You left some bugs in production...", "#e0a04a");
+}
+function drawPest(ctx) {
+  const c = G.closeup;
+  drawCloseupFrame(ctx, "thirsty", gregDroop(G.greg));
+  const left = c.bugs.filter(b => !b.dead).length;
+  for (const b of c.bugs) if (!b.dead) {
+    rect(ctx, b.x - 2, b.y - 1, 4, 3, "#2c3a20"); // body
+    rect(ctx, b.x - 1, b.y - 2, 2, 1, "#46502c");
+    px(ctx, b.x - 3, b.y, "#1a2210"); px(ctx, b.x + 2, b.y, "#1a2210"); // legs
+  }
+  text(ctx, "APHIDS! Click to squash the bugs.", 160, 14, "#ff9a9a", { size: 7, align: "center" });
+  text(ctx, "Left: " + left, 160, 26, "#e0c98f", { size: 7, align: "center" });
+  closeupButton(ctx, left ? "GIVE UP" : "DONE", () => finishPest(left === 0));
+}
+
+// --- Leaf-shine: rub the dust off Greg's leaves so he can photosynthesise ---
+function openDustGame() {
+  const patches = [];
+  for (let i = 0; i < 6; i++) {
+    const a = Math.random() * Math.PI * 2, r = 14 + Math.random() * 44;
+    patches.push({ x: 160 + Math.cos(a) * r, y: 104 + Math.sin(a) * r * 0.8, rad: 9 + Math.random() * 4, dust: 1 });
+  }
+  G.closeup = { type: "dust", patches };
+  sfx("page");
+}
+function updateDust(dt) {
+  const c = G.closeup; if (!c) return;
+  if (G.mouse.down) {
+    for (const p of c.patches) if (p.dust > 0 && Math.hypot(p.x - G.mouse.x, p.y - G.mouse.y) < p.rad + 2) {
+      p.dust = Math.max(0, p.dust - 2.6 * dt);
+      if (Math.random() < 0.3) sfx("drip");
+    }
+  }
+  if (c.patches.every(p => p.dust <= 0)) finishDust();
+}
+function finishDust() {
+  G.greg.dust = 0; G.greg.growth += 1;            // a clean Greg photosynthesises better
+  G.greg.stage = stageFor(G.greg.growth);
+  G.closeup = null;
+  sfx("grow"); toast("Leaves gleaming. Greg perks right up.", "#8fe39b");
+}
+function drawDust(ctx) {
+  const c = G.closeup;
+  drawCloseupFrame(ctx, gregMood(G.greg, false), gregDroop(G.greg));
+  for (const p of c.patches) if (p.dust > 0) {
+    ctx.fillStyle = `rgba(150,140,120,${0.5 * p.dust})`;
+    for (let i = 0; i < 10; i++) { const a = i / 10 * 6.28; ctx.fillRect((p.x + Math.cos(a) * p.rad * Math.random()) | 0, (p.y + Math.sin(a) * p.rad * Math.random()) | 0, 2, 2); }
+  }
+  const left = c.patches.filter(p => p.dust > 0).length;
+  text(ctx, "Dusty leaves! HOLD and rub to wipe them clean.", 160, 14, "#e0c98f", { size: 7, align: "center" });
+  closeupButton(ctx, left ? "LEAVE" : "DONE", () => { G.closeup = null; });
+}
+
 /* -------------------------------------------------- scene painters --- */
 function drawSky(ctx, x, y, w, h, night) {
   if (night) {
@@ -774,6 +895,9 @@ function drawOfficeDesk(ctx) {
   rect(ctx, 96, 116, 40, 6, "#c8c8d0");
   sprite(ctx, MUG, 150, 106, { scale: 1.6 });
   drawGreg(ctx, 196, 118, { scale: 1.5, stage: G.greg.stage, droop: gregDroop(G.greg), mood: gregMood(G.greg, false), t: G.t, bloom: G.greg.bloom });
+  // afflictions, visible on the desk so you can spot them
+  if (G.greg.dust >= 0.6) for (let i = 0; i < 14; i++) { const s = (i * 9301 + 49) % 233280; px(ctx, 176 + (s % 40), 74 + ((s >> 4) % 36), "rgba(150,140,120,0.5)"); }
+  if (G.greg.pests > 0) for (let i = 0; i < Math.min(6, G.greg.pests); i++) { const bx = 178 + (i * 53 % 38), byy = 80 + (i * 31 % 34) + Math.sin(G.t * 3 + i) * 1.5; rect(ctx, bx, byy, 3, 2, "#2c3a20"); }
 }
 
 // Used by the milestone card background — the full office in one call.
@@ -1033,7 +1157,7 @@ function update(dt) {
       G.fade = 0; G.fadeDir = 0;
     }
   }
-  if (G.closeup) updateWatering(dt);
+  if (G.closeup) { const t = G.closeup.type; if (t === "pest") updatePest(dt); else if (t === "dust") updateDust(dt); else updateWatering(dt); }
 
   if (G.scene === "commute" && G.t >= G.commuteEnd) {
     const then = G.commuteThen; G.commuteThen = null; if (then) then();
@@ -1126,7 +1250,7 @@ function render() {
     drawVignette(ctx);
   }
 
-  if (G.closeup) drawWatering(ctx);
+  if (G.closeup) { const t = G.closeup.type; if (t === "pest") drawPest(ctx); else if (t === "dust") drawDust(ctx); else drawWatering(ctx); }
   if ((G.scene === "intro" || G.scene === "card" || G.scene === "gameover") && G.card) drawCard(ctx, G.card);
 
   // toast
@@ -1229,11 +1353,14 @@ function onDown(e) {
   toLocal(e);
   G.mouse.down = true;
 
-  // watering close-up: press = pour, unless on the DONE button
+  // close-up minigames: a corner button always wins; otherwise per type
   if (G.closeup) {
     const overBtn = G.hotspots.find(z => z.btn && hit(z.x, z.y, z.w, z.h));
     if (overBtn) { overBtn.fn(); return; }
-    G.closeup.pouring = true;
+    const t = G.closeup.type;
+    if (t === "pest") squashAt(G.mouse.x, G.mouse.y);
+    else if (t === "water") G.closeup.pouring = true;
+    // (dust rubs while the mouse is held — handled in updateDust)
     return;
   }
   // an open conversation: click a topic (menu) or advance a line (play)
@@ -1285,13 +1412,13 @@ function bindInput() {
     const k = e.key.toLowerCase();
     if (k === " ") {
       e.preventDefault();
-      if (G.closeup) { if (!spaceDown) { G.closeup.pouring = true; spaceDown = true; } return; }
+      if (G.closeup) { if (G.closeup.type === "water" && !spaceDown) { G.closeup.pouring = true; spaceDown = true; } return; }
       if (G.convo && G.convo.mode === "play") { advanceConvo(); return; }
       if ((G.scene === "intro" || G.scene === "card") && G.card && !G.card.funeral) advanceCard();
       else if (G.scene === "gameover" && G.card && G.card.onDone) G.card.onDone();
     }
     if (k === "enter") {
-      if (G.closeup) { commitWatering(); return; }
+      if (G.closeup) { if (G.closeup.type === "water") commitWatering(); return; }
       if (G.convo && G.convo.mode === "play") { advanceConvo(); return; }
       if ((G.scene === "intro" || G.scene === "card") && G.card && !G.card.funeral) advanceCard();
       else if (G.scene === "gameover" && G.card && G.card.onDone) G.card.onDone();
@@ -1311,3 +1438,5 @@ G.__pick = pickTopic;
 G.__closeConvo = closeConvo;
 G.__talk = talkToNpc;
 G.__talkGreg = talkToGreg;
+G.__pest = openPestGame;
+G.__dust = openDustGame;

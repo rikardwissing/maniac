@@ -41,6 +41,12 @@ await page.waitForTimeout(150); await shot("05f-greg-convo-line");
 await page.evaluate(()=>{const n=window.__LAGOM.npcs.find(x=>x.id==='bittan');window.__LAGOM.__talk(n);const c=window.__LAGOM.convo;window.__LAGOM.__pick(c.topics[0]);});
 await page.waitForTimeout(150); await shot("05i-bittan-line");
 await page.evaluate(()=>window.__LAGOM.__closeConvo());
+// affliction minigames
+await page.evaluate(()=>{window.__LAGOM.greg.pests=6;window.__LAGOM.__pest();});
+await page.waitForTimeout(150); await shot("05j-aphids");
+await page.evaluate(()=>{window.__LAGOM.closeup=null;window.__LAGOM.greg.dust=1;window.__LAGOM.__dust();});
+await page.waitForTimeout(150); await shot("05k-dusting");
+await page.evaluate(()=>{window.__LAGOM.closeup=null;window.__LAGOM.greg.pests=0;window.__LAGOM.greg.dust=0;});
 // commute (day + dusk)
 await page.evaluate(()=>{const G=window.__LAGOM;G.scene='commute';G.commuteDusk=false;G.commuteLabel='Cycling to the office...';G.fade=0;G.fadeDir=0;});
 await page.waitForTimeout(200); await shot("05c-commute-day");
