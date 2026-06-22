@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<meta name="theme-color" content="#0d120c" />
+<title>LAGOM — a nine-to-five survival story</title>
+<meta name="description" content="A cozy pixel life-sim. Keep Greg, the office plant, alive one day at a time. Water him lagom — not too much, not too little. Teamtailor Linköping." />
+<meta property="og:title" content="LAGOM — keep Greg alive" />
+<meta property="og:description" content="A cozy plant-care life-sim. Water Greg lagom. Don't be the one who kills the office plant." />
+<meta property="og:type" content="website" />
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml" />
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div id="stage">
+    <div id="bezel">
+      <canvas id="screen" width="320" height="200"></canvas>
+      <div id="scanlines" aria-hidden="true"></div>
+      <div id="glare" aria-hidden="true"></div>
+    </div>
+    <div id="hint">click things · hold to pour water · SPACE continue · H help · ⛶ fullscreen · M mute</div>
+  </div>
+
+  <div id="boot">
+    <div class="boot-inner">
+      <div class="boot-logo">LAGOM</div>
+      <div class="boot-sub">a nine-to-five survival story</div>
+      <div class="boot-greg" aria-hidden="true">🪴</div>
+      <button id="startBtn" type="button">▶ START THE DAY</button>
+      <div class="boot-tip">keep Greg alive · water him lagom · headphones recommended</div>
+    </div>
+  </div>
+
+  <button id="fsBtn" type="button" title="Fullscreen (F)" aria-label="Fullscreen">⛶</button>
+
+  <script type="module" src="main.js"></script>
+</body>
+</html>
