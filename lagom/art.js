@@ -293,3 +293,24 @@ export function drawCoffeeMachine(ctx, x, y, s = 1) {
   rect(ctx, x + 4 * s, y + 1 * s, 3 * s, 2 * s, "#34d0b4"); // light
 }
 
+
+/* --------------------------------------------------- inventory icons -- */
+// 16x16-ish icons drawn with rects (kept tiny for the inventory bar).
+export function drawIconFood(ctx, x, y) {
+  rect(ctx, x + 3, y + 5, 10, 9, "#9a6233"); rect(ctx, x + 3, y + 5, 10, 2, "#b07a42"); // bag
+  rect(ctx, x + 6, y + 1, 4, 4, "#46b85c"); rect(ctx, x + 7, y, 2, 3, "#2c8540");        // leaf
+  rect(ctx, x + 7, y + 7, 2, 5, "#eafff0"); rect(ctx, x + 6, y + 8, 4, 2, "#eafff0");     // +
+}
+export function drawIconCloth(ctx, x, y) {
+  rect(ctx, x + 2, y + 3, 12, 10, "#6db5d8"); rect(ctx, x + 2, y + 3, 12, 2, "#9fe0ff");
+  for (let i = 0; i < 3; i++) rect(ctx, x + 4 + i * 3, y + 6, 1, 5, "#3f7fb0");
+}
+export function drawIconSpray(ctx, x, y) {
+  rect(ctx, x + 5, y + 5, 6, 9, "#6b6b7a"); rect(ctx, x + 6, y + 6, 4, 5, "#9fe0ff");
+  rect(ctx, x + 6, y + 2, 3, 3, "#46505a"); rect(ctx, x + 3, y + 3, 4, 2, "#46505a");
+}
+export function drawIconBun(ctx, x, y) {
+  rect(ctx, x + 3, y + 5, 10, 7, "#c98a4a"); rect(ctx, x + 3, y + 5, 10, 2, "#e0a85a");
+  rect(ctx, x + 5, y + 7, 2, 2, "#f6f0e0"); rect(ctx, x + 9, y + 7, 2, 2, "#f6f0e0");
+  rect(ctx, x + 7, y + 9, 2, 2, "#f6f0e0");
+}

@@ -48,6 +48,11 @@ await page.evaluate(()=>{window.__LAGOM.closeup=null;window.__LAGOM.greg.dust=1;
 await page.waitForTimeout(150); await shot("05k-dusting");
 await page.evaluate(()=>{window.__LAGOM.closeup=null;window.__LAGOM.greg.pests=0;window.__LAGOM.greg.dust=0;});
 // 20-day victory ending + credits
+// inventory: holding plant food, hovering Greg
+await page.evaluate(()=>{window.__LAGOM.holding="plantfood";});
+await hover(197,104); await shot("05l-inventory");
+await page.evaluate(()=>{window.__LAGOM.holding=null;});
+// 20-day victory ending + credits
 await page.evaluate(()=>{const G=window.__LAGOM;G.day=20;G.greg.bloom=true;G.__win();});
 await page.waitForTimeout(150); await shot("06c-promotion");
 await page.evaluate(()=>{const G=window.__LAGOM;for(let i=0;i<24&&G.scene!=='credits';i++){if(G.card){const d=G.card.onDone;G.card.idx=G.card.lines.length-1;G.card=null;if(d)d();}}});

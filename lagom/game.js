@@ -4,7 +4,15 @@
 import { rect, frame, sprite, px, speckle, mix } from "../js/pixel.js";
 import { sfx, playMusic } from "../js/audio.js";
 import { ACTOR, ACTOR_W, ACTOR_H, SKINS as CREW, actorShadow, drawPortrait } from "../js/art.js";
-import { drawGreg, drawMonitor, drawDoor, drawCoffeeMachine, drawBike, drawCathedral, CAN, MUG, CLOCK } from "./art.js";
+import { drawGreg, drawMonitor, drawDoor, drawCoffeeMachine, drawBike, drawCathedral, drawIconFood, drawIconCloth, drawIconSpray, drawIconBun, CAN, MUG, CLOCK } from "./art.js";
+
+// Inventory item registry — tools tied to plant care.
+const ITEMS = {
+  cloth:     { name: "leaf cloth",  icon: drawIconCloth },
+  plantfood: { name: "plant food",  icon: drawIconFood },
+  spray:     { name: "bug spray",   icon: drawIconSpray },
+  bun:       { name: "kanelbulle",  icon: drawIconBun },
+};
 
 export const SCREEN_W = 320, SCREEN_H = 200;
 
@@ -78,8 +86,47 @@ G.begin = function () {
   G.convo = null;
   G._convoSeen = {};        // remembers consumed "once" topics across the run
   G.bittanWarned = false;   // unlocked by asking Bittan to go easy on Greg
+  G.inventory = ["cloth", "plantfood"];  // your plant-care kit, from the colleague
+  G.holding = null;         // item "in hand" for use-on-target
+  G.won = false;
   startIntro();
 };
+
+/* --------------------------------------------------------- inventory - */
+function hasItem(id) { return G.inventory.includes(id); }
+function addItem(id) { if (!hasItem(id)) { G.inventory.push(id); sfx("pickup"); toast("Got the " + ITEMS[id].name + ".", "#8fe39b"); } }
+function removeItem(id) { const i = G.inventory.indexOf(id); if (i >= 0) G.inventory.splice(i, 1); if (G.holding === id) G.holding = null; }
+
+// Use the held item on a clicked object. Returns true if it did something.
+function useHeld(obj) {
+  const it = G.holding; if (!it) return false;
+  const g = G.greg;
+  if (obj.id === "greg") {
+    if (it === "cloth") { G.holding = null; if (g.dust > 0.05) { openDustGame(); } else say("His leaves already gleam."); return true; }
+    if (it === "plantfood") {
+      G.holding = null;
+      if (g.pests > 0) { say("De-bug him first — bugs love a fed plant."); return true; }
+      if (g.hydration < 30) { say("Feed a thirsty plant and you just scorch the roots."); return true; }
+      if (G.flags.fed) { say("He's had his feed today. Lagom, remember?"); return true; }
+      g.growth += 1; g.stage = stageFor(g.growth); G.flags.fed = true; sfx("grow"); toast("Greg: mmm, nutrients. Don't overdo it.", "#8fe39b"); return true;
+    }
+    if (it === "spray") { G.holding = null; if (g.pests > 0) { g.pests = 0; sfx("bug"); toast("Pfft! Aphids gone.", "#8fe39b"); } else say("No bugs to spray right now."); return true; }
+    if (it === "bun") { G.holding = null; say("Greg can't eat a bun. He was very clear about this."); return true; }
+  }
+  if (obj.id && obj.id.startsWith("npc_")) {
+    const who = obj.name;
+    if (it === "bun") {
+      removeItem("bun");
+      if (who === "Bittan") { G.bittanWarned = true; toast("Bittan's too busy enjoying it to over-water. Greg relaxes.", "#8fe39b"); }
+      else say(who + " accepts the kanelbulle. Office diplomacy.");
+      return true;
+    }
+  }
+  // default: nothing useful
+  say("That doesn't do anything useful here.");
+  G.holding = null;
+  return true;
+}
 
 /* -------------------------------------------------------- helpers ---- */
 function fontPx(size) { return `${size}px PressStart2P, monospace`; }
@@ -484,6 +531,8 @@ function goMorning(first) {
     G.greg.dust = Math.min(1, (G.greg.dust || 0) + 0.22);
     if (G.greg.pests === 0 && Math.random() < 0.22 + Math.min(0.2, G.day * 0.015)) G.greg.pests = 4 + Math.floor(Math.random() * 3);
   }
+  // fika day leaves a kanelbulle in your bag (give it to Bittan to calm her)
+  if (G.modifier.id === "fika") addItem("bun");
   playMusic("home");
   // fade to black, then reveal the day's modifier as a phone notification;
   // dismissing it drops you into the playable morning.
@@ -1227,11 +1276,31 @@ function drawHoverBracket(ctx) {
 }
 
 // SCUMM-style sentence line: "Verb the thing" for whatever's under the cursor.
+// Sentence line at the top; reflects the held item ("Use X on …") or hover.
 function drawSentence(ctx) {
-  const y = SCREEN_H - 26;
-  rect(ctx, 0, y, SCREEN_W, 12, "#0c140d");
-  let s = G.hoverObj ? (G.hoverObj.sentence || `${G.hoverObj.verb} ${G.hoverObj.name}`) : (G.player && G.player.walking ? "Walking..." : "Walk");
-  text(ctx, s, 160, y + 2, G.hoverObj ? "#8fe39b" : "#7a8a7a", { size: 7, align: "center" });
+  rect(ctx, 0, 0, SCREEN_W, 11, "rgba(8,16,10,0.82)");
+  let s, col = "#7a8a7a";
+  if (G.holding) { s = "Use " + ITEMS[G.holding].name + (G.hoverObj ? " on " + G.hoverObj.name : " on..."); col = "#9fe0ff"; }
+  else if (G.hoverObj) { s = G.hoverObj.sentence || `${G.hoverObj.verb} ${G.hoverObj.name}`; col = "#8fe39b"; }
+  else s = G.player && G.player.walking ? "Walking..." : "Walk";
+  text(ctx, s, 160, 2, col, { size: 7, align: "center" });
+}
+
+// Inventory bar (bottom strip above the HUD): click an item to hold it.
+function drawInventory(ctx) {
+  const y = SCREEN_H - 30, slot = 16;
+  rect(ctx, 0, y, SCREEN_W, slot, "#0c140d");
+  rect(ctx, 0, y, SCREEN_W, 1, "#2c8540");
+  let x = 6;
+  G.inventory.forEach((id) => {
+    const held = G.holding === id;
+    const hot = G.mouse.x >= x && G.mouse.x <= x + slot && G.mouse.y >= y + 1 && G.mouse.y <= y + slot;
+    rect(ctx, x, y + 1, slot - 2, slot - 2, held ? "#2c8540" : (hot ? "#1f3a2a" : "#16241a"));
+    frame(ctx, x, y + 1, slot - 2, slot - 2, held ? "#8fe39b" : "#0a120a");
+    ITEMS[id].icon(ctx, x, y);
+    G.hotspots.push({ x, y: y + 1, w: slot - 2, h: slot - 2, fn: () => { G.holding = held ? null : id; sfx("select"); }, btn: true });
+    x += slot;
+  });
 }
 
 let sleepK = 0, sleeping = false;
@@ -1349,7 +1418,8 @@ function render() {
     }
     drawVignette(ctx);
     drawBubbles(ctx);
-    if (G.convo) drawConvo(ctx); else drawSentence(ctx);
+    if (G.convo) { drawConvo(ctx); }
+    else { drawSentence(ctx); if (G.inventory.length) drawInventory(ctx); }
     drawHUD(ctx);
     drawBanner(ctx);
   } else if (play && !G.closeup) {  // sleeping
@@ -1492,10 +1562,20 @@ function onDown(e) {
     if (G.t - G.credits.start >= 73) { G.greg = freshGreg(); G.day = 1; startIntro(); }
     return;
   }
+  // inventory slot clicks (hold/unhold) — handled via hotspots
+  const invBtn = G.hotspots.find(z => z.btn && hit(z.x, z.y, z.w, z.h));
+  if (invBtn && ["morning", "office", "night"].includes(G.scene) && !sleeping) { invBtn.fn(); return; }
+
   // playable scenes: left-click = walk over & use; right-click = examine.
   if (["morning", "office", "night"].includes(G.scene) && !sleeping) {
     const obj = objectAt(G.mouse.x, G.mouse.y);   // compute fresh (avoid stale hover)
     const f = FLOOR[G.scene];
+    // holding an item: walk over and use it on the target (or drop on empty floor)
+    if (G.holding && e.button !== 2) {
+      if (obj) { sfx("verb"); walkTo(obj.walkX, obj.walkY != null ? obj.walkY : f.nearY - 6, { id: "useitem", act: () => useHeld(obj) }); }
+      else { G.holding = null; }
+      return;
+    }
     if (obj && e.button === 2) { sfx("talk"); G.player.facing = obj.walkX < G.player.x ? -1 : 1; lookAt(obj); }
     else if (obj) { sfx("verb"); walkTo(obj.walkX, obj.walkY != null ? obj.walkY : f.nearY - 6, obj); }
     else if (e.button !== 2) walkTo(G.mouse.x, G.mouse.y, null);
@@ -1536,7 +1616,7 @@ function bindInput() {
       else if (G.scene === "gameover" && G.card && G.card.onDone) G.card.onDone();
     }
     if (k === "escape" && G.convo) closeConvo();
-    if (k === "h") flashHint("click to walk · click to use · right-click Greg to chat · talk to coworkers · hold to pour");
+    if (k === "h") flashHint("click to walk/use · click a bag item then a target · right-click Greg to chat · hold to pour");
   });
   window.addEventListener("keyup", (e) => {
     if (e.key === " ") { spaceDown = false; if (G.closeup) G.closeup.pouring = false; }

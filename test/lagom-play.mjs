@@ -103,6 +103,14 @@ try {
   if (!(gAfter>gBefore)) throw new Error("dusting did not boost growth ("+gBefore+"->"+gAfter+")");
   console.log("minigames OK (aphids squashed + leaves dusted)");
 
+  // ---- inventory: feed Greg with plant food (held item used on a target) ----
+  await page.evaluate(()=>{const G=window.__LAGOM; G.greg.pests=0; G.greg.dust=0; G.greg.hydration=60; G.flags.fed=false; G.holding="plantfood";});
+  if (!(await page.evaluate(()=>window.__LAGOM.inventory.includes("plantfood")))) throw new Error("missing starter plant food");
+  await clickAt(...OBJ.greg);
+  await page.waitForFunction(()=>window.__LAGOM.flags.fed===true,null,{timeout:5000});
+  if (await page.evaluate(()=>window.__LAGOM.holding)) throw new Error("held item not consumed/cleared after use");
+  console.log("inventory OK (fed Greg with plant food)");
+
   // ---- neglect Greg until he dies ----
   let guard=0;
   while ((await S()).scene!=="gameover" && guard++<40){
