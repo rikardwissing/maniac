@@ -168,20 +168,20 @@ function objectsFor() {
     case "morning": return [
       { id: "window", x: 22, y: 16, w: 86, h: 46, walkX: 70, name: "window", verb: "Look out of", act: () => say(weatherLine()), look: () => say(weatherLine()) },
       { id: "herb", x: 28, y: 82, w: 34, h: 30, walkX: 70, name: "windowsill sprout", verb: "Look at", act: () => say("My own little sprout. Greg calls it 'the intern'.") },
-      { id: "coffee", x: 124, y: 82, w: 64, h: 50, walkX: 152, name: "coffee machine", verb: "Make coffee", act: () => { sfx("sip"); G.flags.coffee = true; say("Mmm. Monday fuel."); }, look: "The office-grade machine I absolutely splurged on." },
+      { id: "coffee", x: 124, y: 82, w: 64, h: 50, walkX: 152, name: "coffee machine", verb: "Make coffee", sentence: "Make a coffee", act: () => { sfx("sip"); G.flags.coffee = true; say("Mmm. Monday fuel."); }, look: "The office-grade machine I absolutely splurged on." },
       { id: "bed", x: 200, y: 90, w: 92, h: 40, walkX: 244, name: "bed", verb: "Look at", act: () => say("Already made. I'm a functioning adult. Mostly.") },
-      { id: "door", x: 288, y: 56, w: 30, h: 76, walkX: 278, name: "front door", verb: "Go to work", act: goWork, look: "Beyond it: tickets, fika, and Greg." },
+      { id: "door", x: 288, y: 56, w: 30, h: 76, walkX: 278, name: "front door", verb: "Go to work", sentence: "Go to work", act: goWork, look: "Beyond it: tickets, fika, and Greg." },
     ];
     case "night": return [
       { id: "window", x: 22, y: 16, w: 86, h: 46, walkX: 70, name: "window", verb: "Look out of", act: () => say("Quiet street. A fox, maybe. Stockholm can keep its noise.") },
       { id: "herb", x: 28, y: 82, w: 34, h: 30, walkX: 70, name: "windowsill sprout", verb: "Look at", act: () => say("Night-night, little intern.") },
-      { id: "coffee", x: 124, y: 82, w: 64, h: 50, walkX: 152, name: "coffee machine", verb: "Make tea", act: () => { sfx("sip"); say("Decaf. I'm not an animal."); } },
-      { id: "bed", x: 200, y: 90, w: 92, h: 40, walkX: 244, name: "bed", verb: "Sleep", act: startSleep, look: "A bed. Greg's overnight thirst is the only alarm that matters." },
+      { id: "coffee", x: 124, y: 82, w: 64, h: 50, walkX: 152, name: "coffee machine", verb: "Make tea", sentence: "Make a cup of tea", act: () => { sfx("sip"); say("Decaf. I'm not an animal."); } },
+      { id: "bed", x: 200, y: 90, w: 92, h: 40, walkX: 244, name: "bed", verb: "Sleep", sentence: "Go to sleep", act: startSleep, look: "A bed. Greg's overnight thirst is the only alarm that matters." },
       { id: "door", x: 288, y: 56, w: 30, h: 76, walkX: 278, name: "front door", verb: "Look at", act: () => say("It's late. Bed's calling, not the office.") },
     ];
     case "office": return [
-      { id: "door", x: 8, y: 56, w: 34, h: 74, walkX: 52, name: "office door", verb: "Head home", act: goHome, look: "Home, and tomorrow. Greg will be thirstier by morning." },
-      { id: "monitor", x: 78, y: 88, w: 62, h: 40, walkX: 110, name: "your computer", verb: "Clear tickets", act: clearTickets, look: "Forty-one open tickets. Forty-one. A nice round number." },
+      { id: "door", x: 8, y: 56, w: 34, h: 74, walkX: 52, name: "office door", verb: "Head home", sentence: "Head home", act: goHome, look: "Home, and tomorrow. Greg will be thirstier by morning." },
+      { id: "monitor", x: 78, y: 88, w: 62, h: 40, walkX: 110, name: "your computer", verb: "Clear tickets", sentence: "Clear a few tickets", act: clearTickets, look: "Forty-one open tickets. Forty-one. A nice round number." },
       { id: "mug", x: 148, y: 98, w: 16, h: 18, walkX: 150, name: "coffee mug", verb: "Look at", act: () => say("Cold. The eternal developer beverage.") },
       { id: "greg", x: 174, y: 78, w: 46, h: 52, walkX: 166, name: "Greg", verb: "Tend", act: openWatering, look: gregLook },
       { id: "window", x: 150, y: 14, w: 150, h: 50, walkX: 250, name: "window", verb: "Look out of", act: () => say("Linkoping rooftops. Someone's pigeon is judging me.") },
@@ -263,7 +263,7 @@ function goMorning(first) {
   fadeTo(() => presentCard({
     bg: drawApartment, bgOpts: { night: false },
     lines: [{ who: "[ Your phone — Day " + G.day + " ]", text: G.modifier.icon + "  " + G.modifier.name + ". " + G.modifier.note }],
-    onDone: () => { G.scene = "morning"; spawnPlayer(244, -1); },
+    onDone: () => { G.scene = "morning"; spawnPlayer(244, -1); G.banner = { text: "— DAY " + G.day + " —", until: G.t + 2.6 }; },
   }));
 }
 
@@ -271,6 +271,16 @@ function goOffice() {
   G.scene = "office";
   playMusic("lagom_office");
   spawnPlayer(56, 1);   // arriving through the office door
+  // Greg greets you with a modifier-aware quip
+  const mq = {
+    heatwave: "Phew, scorcher today. I'll be parched by tonight.",
+    fika: "Is that... kanelbullar? Bring me a crumb. For morale.",
+    rainy: "Grey day. Perfect for a quiet drink. Of water. Hint hint.",
+    bittan: "Bittan 'helped' again. I may be a touch soggy — check the gauge.",
+    normal: "Morning. Try not to let the lagom slip.",
+  };
+  G.gregSay = { text: (G.modifier && mq[G.modifier.id]) || mq.normal, until: G.t + 4.2 };
+  G.nextBark = G.t + 9;
 }
 
 function goNight() {
@@ -488,6 +498,7 @@ function drawApartment(ctx, o = {}) {
   // window with sky
   frame(ctx, 22, 16, 86, 64, "#5a4a30");
   drawSky(ctx, 24, 18, 82, 60, night);
+  if (!night && G.modifier && G.modifier.id === "rainy") drawRain(ctx, 28, { x: 24, y: 18, w: 82, h: 60 });
   rect(ctx, 64, 16, 4, 64, "#5a4a30");
   rect(ctx, 22, 46, 86, 4, "#5a4a30");
   // windowsill herb (your own little plant — flavour)
@@ -637,6 +648,37 @@ function drawCursor(ctx) {
   rect(ctx, x, y, 1, 1, "#000");
 }
 
+// Soft darkened edges for depth/cohesion across the scenes.
+function drawVignette(ctx) {
+  const g = ctx.createRadialGradient(160, 96, 70, 160, 100, 186);
+  g.addColorStop(0, "rgba(0,0,0,0)"); g.addColorStop(1, "rgba(0,0,0,0.26)");
+  ctx.fillStyle = g; ctx.fillRect(0, 0, SCREEN_W, SCREEN_H);
+}
+
+// Falling rain. b = {x,y,w,h} bounds (defaults to full screen).
+function drawRain(ctx, count, b) {
+  b = b || { x: 0, y: 0, w: SCREEN_W, h: SCREEN_H };
+  for (let i = 0; i < count; i++) {
+    let s = (i * 9301 + 49297) % 233280;
+    const rx = b.x + (s % b.w);
+    const ry = b.y + ((s * 0.013 + G.t * 130 + i * 7) % b.h);
+    rect(ctx, rx | 0, ry | 0, 1, 5, "rgba(175,195,215,0.28)");
+  }
+}
+
+// A brief "— DAY N —" banner that fades as a new day opens.
+function drawBanner(ctx) {
+  if (!G.banner || G.t > G.banner.until) return;
+  const left = G.banner.until - G.t;          // seconds remaining
+  const a = Math.min(1, left * 1.5, (2.6 - left) * 3);
+  const w = measure(ctx, G.banner.text, 12) + 24;
+  ctx.globalAlpha = Math.max(0, a);
+  rect(ctx, 160 - w / 2, 30, w, 22, "#0c140d");
+  frame(ctx, 160 - w / 2, 30, w, 22, "#2c8540");
+  text(ctx, G.banner.text, 160, 37, "#8fe39b", { size: 12, align: "center" });
+  ctx.globalAlpha = 1;
+}
+
 /* --------------------------------------------------- player & verbs -- */
 function updatePlayer(dt) {
   const p = G.player;
@@ -694,7 +736,7 @@ function drawHoverBracket(ctx) {
 function drawSentence(ctx) {
   const y = SCREEN_H - 26;
   rect(ctx, 0, y, SCREEN_W, 12, "#0c140d");
-  let s = G.hoverObj ? `${G.hoverObj.verb} ${G.hoverObj.name}` : (G.player && G.player.walking ? "Walking..." : "Walk");
+  let s = G.hoverObj ? (G.hoverObj.sentence || `${G.hoverObj.verb} ${G.hoverObj.name}`) : (G.player && G.player.walking ? "Walking..." : "Walk");
   text(ctx, s, 160, y + 2, G.hoverObj ? "#8fe39b" : "#7a8a7a", { size: 7, align: "center" });
 }
 
@@ -784,6 +826,7 @@ function render() {
     case "card":    if (G.card && G.card.bg) G.card.bg(ctx, G.card.bgOpts || {}); break;
     case "gameover": break;
   }
+  if (["morning", "office", "night", "commute"].includes(G.scene) && !G.closeup) drawVignette(ctx);
 
   // playable scenes: object hotspots, the avatar, the sentence line + HUD
   if (["morning", "office", "night"].includes(G.scene) && !G.closeup && !sleeping) {
@@ -793,6 +836,7 @@ function render() {
     if (G.scene === "office" && G.gregSay && G.gregSay.text) drawBubble(ctx, 196, 50, G.gregSay.text, "#8fe39b");
     drawSentence(ctx);
     drawHUD(ctx);
+    drawBanner(ctx);
   } else if (["morning", "office", "night"].includes(G.scene) && !G.closeup) {
     drawPlayer(ctx);
     drawHUD(ctx);
@@ -847,6 +891,7 @@ function drawCommute(ctx) {
   const bob = Math.sin(G.t * 9) * 2;
   drawBike(ctx, 160, 150 + bob, 1.9, G.t * 11);
   drawPerson(ctx, 148, 150 + bob - 38, 1.5, { facing: 1, step: (G.t * 2.6) % 1, ...PLAYER });
+  if (G.modifier && G.modifier.id === "rainy") drawRain(ctx, 70);
   // caption
   text(ctx, G.commuteLabel || "", 160, 18, "#10140a", { size: 8, align: "center", shadow: false });
   text(ctx, G.commuteLabel || "", 160, 17, dusk ? "#fff0d6" : "#1f3a2a", { size: 8, align: "center" });

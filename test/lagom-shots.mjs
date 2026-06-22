@@ -19,7 +19,9 @@ await page.click("#startBtn"); await page.waitForTimeout(400); await shot("02-in
 await page.evaluate(()=>{const G=window.__LAGOM;let n=0;while(G.scene==='intro'&&n++<12){if(G.card){G.card.idx=G.card.lines.length-1;}const done=G.card&&G.card.onDone;G.card=null;if(done)done();}});
 await page.waitForTimeout(500); await shot("03-morning-phone");
 await page.evaluate(()=>{const G=window.__LAGOM;const d=G.card&&G.card.onDone;G.card=null;if(d)d();});
-await page.waitForTimeout(400); await hover(303,94); await shot("04-morning-walk"); // sentence: Go to work
+await page.evaluate(()=>{const G=window.__LAGOM;G.banner={text:"— DAY 1 —",until:G.t+2.6};});
+await page.waitForTimeout(120); await shot("04-morning-banner");
+await page.waitForTimeout(700); await hover(303,94); await shot("04b-morning-walk"); // sentence: Go to work
 // office
 await page.evaluate(()=>{window.__LAGOM.scene='office';window.__LAGOM.fade=0;window.__LAGOM.fadeDir=0;window.__LAGOM.player={x:56,y:150,tx:56,walking:false,facing:1,anim:0,pending:null,say:null,scale:1.6};});
 await page.evaluate(()=>{window.__LAGOM.gregSay={text:"Lagom. The only philosophy a plant needs.",until:window.__LAGOM.t+9};});
@@ -27,8 +29,9 @@ await page.waitForTimeout(200); await hover(197,104); await shot("05-office"); /
 // commute (day + dusk)
 await page.evaluate(()=>{const G=window.__LAGOM;G.scene='commute';G.commuteDusk=false;G.commuteLabel='Cycling to the office...';G.fade=0;G.fadeDir=0;});
 await page.waitForTimeout(200); await shot("05c-commute-day");
-await page.evaluate(()=>{const G=window.__LAGOM;G.scene='commute';G.commuteDusk=true;G.commuteLabel='Heading home for the evening...';});
-await page.waitForTimeout(200); await shot("05d-commute-dusk");
+await page.evaluate(()=>{const G=window.__LAGOM;G.scene='commute';G.commuteDusk=true;G.commuteLabel='Heading home for the evening...';G.modifier={id:'rainy',icon:'/',name:'Rainy commute',note:''};});
+await page.waitForTimeout(200); await shot("05d-commute-dusk-rain");
+await page.evaluate(()=>{window.__LAGOM.modifier=null;});
 await page.evaluate(()=>{const G=window.__LAGOM;G.scene='office';G.gregSay=null;});
 // watering close-up
 await page.evaluate(()=>{window.__LAGOM.closeup={level:60,pouring:true,committed:false};});
