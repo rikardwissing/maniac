@@ -40,6 +40,20 @@ const MODIFIERS = [
   { id: "cold",     icon: "*",  name: "Cold snap",           note: "Chilly office. Greg sips slowly tonight — go easy on the water." },
 ];
 
+// Scripted beats keyed to the day, so the 20-day run has an arc. Each is a
+// modifier (its id can drive drain, e.g. "heatwave"/"cold") plus optional
+// pests / dusty / give(item) fields.
+const DAY_EVENTS = {
+  3:  { id: "aphidseason", icon: "!", name: "Aphid season",      note: "Something's nibbling the office plants. Check Greg's leaves!", pests: 6 },
+  5:  { id: "delivery",    icon: "+", name: "A delivery arrives", note: "A parcel for you: one can of bug spray, for emergencies.", give: "spray" },
+  7:  { id: "cold",        icon: "*", name: "Bittan's on leave",  note: "No 'helpful' watering this week — and a cold snap. Greg's all yours." },
+  10: { id: "photoday",    icon: "o", name: "Office photo day",   note: "Team photo at noon. Greg had better look his absolute best." },
+  13: { id: "heatwave",    icon: "*", name: "Heatwave week",      note: "Sweltering all week. Greg will be parched — water generously." },
+  16: { id: "fika",        icon: "o", name: "Greg's anniversary", note: "Greg's been here years! There's cake — and a kanelbulle for you." },
+  18: { id: "newhire",     icon: "!", name: "A new hire starts",  note: "Someone's shadowing you this week. Funny, that.", dusty: true },
+  19: { id: "crunch",      icon: "!", name: "Crunch day",         note: "Big launch — the office is frantic. Don't forget about Greg." },
+};
+
 /* ------------------------------------------------------- the state ---- */
 export const G = {
   ctx: null, canvas: null, fontReady: true,
@@ -365,7 +379,21 @@ function perTopics() {
   ];
 }
 
-const NPC_TOPICS = { bittan: bittanTopics, caroline: carolineTopics, per: perTopics };
+function newhireTopics() {
+  return [
+    { q: "First week, then?", a: [
+      { who: "the new hire", text: "Yep! Everyone keeps talking about... a plant?" },
+      { who: ME, text: "Greg. You'll understand soon enough." },
+    ] },
+    { q: "Want to learn to water Greg?", once: true, a: [
+      { who: "the new hire", text: "Is it hard?" },
+      { who: ME, text: "Lagom. Not too much, not too little." },
+      { who: "the new hire", text: "...I have absolutely no idea what that means." },
+      { who: ME, text: "You will." },
+    ] },
+  ];
+}
+const NPC_TOPICS = { bittan: bittanTopics, caroline: carolineTopics, per: perTopics, newhire: newhireTopics };
 
 function openConvo(spec) {
   G.convo = {
@@ -519,9 +547,11 @@ function startIntro() {
 
 /* ------------------------------------------------ scene transitions -- */
 function goMorning(first) {
-  // pick today's modifier (first day is always 'normal')
-  G.modifier = first ? MODIFIERS[0] : MODIFIERS[Math.floor(Math.random() * MODIFIERS.length)];
   G.flags = {};
+  // scripted day-beats shape the 20-day arc; other days roll a random modifier
+  if (first) G.modifier = MODIFIERS[0];
+  else if (DAY_EVENTS[G.day]) G.modifier = DAY_EVENTS[G.day];
+  else G.modifier = MODIFIERS[Math.floor(Math.random() * MODIFIERS.length)];
   // Bittan's "help" lands before you arrive — gentler if you've had the talk.
   if (G.modifier.id === "bittan") {
     G.greg.hydration = Math.min(105, G.greg.hydration + (G.bittanWarned ? 12 : 28));
@@ -531,8 +561,13 @@ function goMorning(first) {
     G.greg.dust = Math.min(1, (G.greg.dust || 0) + 0.22);
     if (G.greg.pests === 0 && Math.random() < 0.22 + Math.min(0.2, G.day * 0.015)) G.greg.pests = 4 + Math.floor(Math.random() * 3);
   }
+  // scripted events can force afflictions / hand you items
+  const ev = G.modifier;
+  if (ev.pests) G.greg.pests = ev.pests;
+  if (ev.dusty) G.greg.dust = 1;
+  if (ev.give) addItem(ev.give);
   // fika day leaves a kanelbulle in your bag (give it to Bittan to calm her)
-  if (G.modifier.id === "fika") addItem("bun");
+  if (ev.id === "fika") addItem("bun");
   playMusic("home");
   // fade to black, then reveal the day's modifier as a phone notification;
   // dismissing it drops you into the playable morning.
@@ -557,6 +592,9 @@ function goOffice() {
       desc: "Bittan. The kindest person here, and Greg's biggest threat.",
       wander: { min: 104, max: 172, dir: 1, anim: 0 } },
   ];
+  // the new hire turns up to shadow you in the final week (foreshadows the end)
+  if (G.day >= 18) G.npcs.push({ id: "newhire", name: "the new hire", skin: CREW.emil, x: 232, y: 154, face: -1,
+    desc: "The new hire. Keeps eyeing Greg with great suspicion." });
   G.npcSay = null;
   // Greg greets you — afflictions take priority over the weather quip
   const mq = {

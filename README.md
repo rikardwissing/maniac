@@ -157,6 +157,20 @@ about over-watering Greg "to help" — and **right-click Greg** to chat with the
 plant himself (he's outlived three product managers and has opinions). Choices
 can matter: ask Bittan to go easy and she'll actually tame her watering can.
 
+**More than watering.** Greg gets **afflictions** with their own minigames —
+**aphids** to squash (they suck sap and breed if you ignore them) and **dusty
+leaves** to wipe (too dusty and he can't grow). There's a **point-and-click
+inventory**: your plant-care kit (leaf cloth, plant food) plus things you find
+or earn — use the held item on a target (feed a healthy Greg, give Bittan a
+kanelbulle so she stops over-watering). And the days have an **arc** of scripted
+events — aphid season, a bug-spray delivery, Greg's anniversary, a heatwave
+week, the new hire who turns up to shadow you.
+
+**A real ending.** Keep Greg alive for **20 days** and you're **promoted** — to
+a glass-box floor where no plants are allowed. You hand Greg to the new hire
+(full circle from the intro) and the **credits** roll over a blooming Greg to a
+bittersweet song, the way a certain GLaDOS ballad once sent players off.
+
 It **shares the engine plumbing** — the `js/pixel.js` renderer and the
 `js/audio.js` chiptune synth — but has its own lightweight day-loop engine
 (`lagom/game.js`) and parametric pixel art (`lagom/art.js`, including a Greg who
@@ -164,15 +178,9 @@ droops, emotes and flowers). Open `lagom/index.html`, or play the deployed
 build at `/lagom/`.
 
 ```bash
-node test/lagom-play.mjs    # keyboard-driven playthrough: day loop, growth, funeral, restart
+node test/lagom-play.mjs    # full playthrough: loop, dialogue, minigames, inventory, ending
 node test/lagom-shots.mjs   # regenerate screenshots into shots/lagom/
 ```
-
-> **Status:** Phases 0–2 — the full playable, *losable* core loop: a walkable
-> point-and-click character, story intro, day cycle, the Greg watering system,
-> growth/bloom milestones, funeral & restart. Still to come: an energy/action
-> budget, the ticket mini-game, coworkers, richer daily modifiers and a
-> streak/score screen.
 
 ## Credits
 

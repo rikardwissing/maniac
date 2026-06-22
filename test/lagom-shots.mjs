@@ -48,6 +48,10 @@ await page.evaluate(()=>{window.__LAGOM.closeup=null;window.__LAGOM.greg.dust=1;
 await page.waitForTimeout(150); await shot("05k-dusting");
 await page.evaluate(()=>{window.__LAGOM.closeup=null;window.__LAGOM.greg.pests=0;window.__LAGOM.greg.dust=0;});
 // 20-day victory ending + credits
+// final week: the new hire appears (day 18)
+await page.evaluate(()=>{window.__LAGOM.day=18;window.__LAGOM.__office();window.__LAGOM.fade=0;window.__LAGOM.fadeDir=0;window.__LAGOM.gregSay=null;});
+await page.waitForTimeout(150); await hover(232,150); await shot("05m-newhire");
+await page.evaluate(()=>{window.__LAGOM.day=1;});
 // inventory: holding plant food, hovering Greg
 await page.evaluate(()=>{window.__LAGOM.holding="plantfood";});
 await hover(197,104); await shot("05l-inventory");

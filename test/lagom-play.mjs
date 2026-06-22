@@ -111,6 +111,17 @@ try {
   if (await page.evaluate(()=>window.__LAGOM.holding)) throw new Error("held item not consumed/cleared after use");
   console.log("inventory OK (fed Greg with plant food)");
 
+  // ---- scripted day events (aphid season day 3, delivery day 5) ----
+  await page.evaluate(()=>{const G=window.__LAGOM; G.greg=Object.assign(G.greg,{hydration:62,alive:true,pests:0,dust:0,growth:9,stage:3}); G.day=2; G.__rollover();});
+  let ev=await page.evaluate(()=>({day:window.__LAGOM.day,pests:window.__LAGOM.greg.pests,mod:window.__LAGOM.modifier.id}));
+  if (ev.day!==3 || ev.pests<1 || ev.mod!=="aphidseason") throw new Error("day-3 aphid event missing: "+JSON.stringify(ev));
+  await page.evaluate(()=>{const G=window.__LAGOM; G.greg.pests=0; G.greg.hydration=62; G.day=4; G.__rollover();});
+  ev=await page.evaluate(()=>({day:window.__LAGOM.day,spray:window.__LAGOM.inventory.includes("spray")}));
+  if (ev.day!==5 || !ev.spray) throw new Error("day-5 delivery (spray) missing: "+JSON.stringify(ev));
+  await page.waitForTimeout(700); // let the day-5 fade + phone card settle
+  for (let i=0;i<5;i++){ if((await S()).scene==="morning")break; if((await S()).card)await key("Space"); else await page.waitForTimeout(300); }
+  console.log("scripted events OK (aphid season + spray delivery)");
+
   // ---- neglect Greg until he dies ----
   let guard=0;
   while ((await S()).scene!=="gameover" && guard++<40){
