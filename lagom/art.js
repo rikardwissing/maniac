@@ -246,24 +246,54 @@ export function drawMonitor(ctx, x, y, s = 1, on = true) {
 }
 
 /* --------------------------------------------------- a tiny person ---- */
-// Simple coworker / colleague sprite (16x28-ish). opts.shirt overrides shirt.
+// Walkable person sprite (~16x29). opts: { facing:1|-1, step:0..1 (walk
+// phase; null = idle), shirt, hair, skin, pants }.
 export function drawPerson(ctx, x, y, s = 1, opts = {}) {
   const skin = opts.skin || "#f0bd92";
   const hair = opts.hair || "#3c2615";
   const shirt = opts.shirt || "#00a98f";
   const pants = opts.pants || "#3a5a8a";
-  const P = (px_, py, w, h, c) => rect(ctx, x + px_ * s, y + py * s, w * s, h * s, c);
-  // head
-  P(4, 0, 8, 7, skin);
-  P(3, 0, 10, 2, hair);     // hair top
-  P(3, 1, 1, 4, hair); P(12, 1, 1, 4, hair);
-  P(5, 3, 2, 2, "#2a1a10"); P(9, 3, 2, 2, "#2a1a10"); // eyes
-  P(6, 5, 4, 1, "#b56a4a"); // mouth
+  const flip = opts.facing === -1;
+  const step = opts.step; // walk phase or undefined for idle
+  const fx = (px_) => flip ? (16 - px_) : px_; // mirror about width 16
+  const P = (px_, py, w, h, c) => { const xx = flip ? (16 - px_ - w) : px_; rect(ctx, x + xx * s, y + py * s, w * s, h * s, c); };
+  // legs (swing when walking)
+  let lA = 18, lB = 18, fA = 27, fB = 27;
+  if (step != null) {
+    const sw = Math.sin(step * Math.PI * 2);
+    lA = 18 - Math.max(0, sw) * 1.5; lB = 18 - Math.max(0, -sw) * 1.5;
+    fA = 27 - Math.max(0, sw) * 2;   fB = 27 - Math.max(0, -sw) * 2;
+  }
+  P(4, lA, 3, 27 - lA + 2, pants); P(9, lB, 3, 27 - lB + 2, pants);
+  P(3, fA, 5, 2, "#15151b"); P(8, fB, 5, 2, "#15151b"); // shoes
   // body
   P(3, 7, 10, 11, shirt);
-  P(2, 8, 2, 8, shirt); P(12, 8, 2, 8, shirt); // arms
-  P(2, 15, 2, 2, skin); P(12, 15, 2, 2, skin); // hands
-  // legs
-  P(4, 18, 3, 9, pants); P(9, 18, 3, 9, pants);
-  P(3, 27, 5, 2, "#15151b"); P(8, 27, 5, 2, "#15151b"); // shoes
+  P(2, 8, 2, 8, shirt); P(12, 8, 2, 8, shirt);     // arms
+  P(2, 15, 2, 2, skin); P(12, 15, 2, 2, skin);     // hands
+  // head
+  P(4, 0, 8, 7, skin);
+  P(3, 0, 10, 2, hair);
+  P(3, 1, 1, 4, hair); P(12, 1, 1, 4, hair);
+  // face (only the forward-facing eye set; mirrored by flip)
+  P(5, 3, 2, 2, "#2a1a10"); P(9, 3, 2, 2, "#2a1a10");
+  P(6, 5, 4, 1, "#b56a4a");
 }
+
+// A simple interior door (frame + panel + handle).
+export function drawDoor(ctx, x, y, w, h, opts = {}) {
+  rect(ctx, x, y, w, h, "#3a2a18");
+  rect(ctx, x + 2, y + 2, w - 4, h - 3, opts.color || "#7a5a36");
+  rect(ctx, x + 4, y + 5, w - 8, (h - 10) / 2 - 2, "#6a4a2a");
+  rect(ctx, x + 4, y + 5 + (h - 10) / 2 + 1, w - 8, (h - 10) / 2 - 2, "#6a4a2a");
+  rect(ctx, x + w - 6, y + h / 2 - 1, 2, 4, "#e8c84a"); // handle
+}
+
+// Counter-top coffee machine.
+export function drawCoffeeMachine(ctx, x, y, s = 1) {
+  rect(ctx, x, y, 18 * s, 22 * s, "#2a2a32");          // body
+  rect(ctx, x + 2 * s, y + 2 * s, 14 * s, 6 * s, "#3a3a44");
+  rect(ctx, x + 5 * s, y + 9 * s, 8 * s, 2 * s, "#15151b"); // spout bar
+  rect(ctx, x + 6 * s, y + 12 * s, 6 * s, 6 * s, "#f6f6fb"); // mug below
+  rect(ctx, x + 4 * s, y + 1 * s, 3 * s, 2 * s, "#34d0b4"); // light
+}
+
